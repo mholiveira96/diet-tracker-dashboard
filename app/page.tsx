@@ -24,9 +24,15 @@ import {
   Save,
   AlertCircle
 } from "lucide-react";
-import { 
-  BarChart, 
-  AreaChart 
+import {
+  BarChart,
+  AreaChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Line,
+  Area
 } from "recharts";
 
 // TypeScript workaround for Loader2/CheckCircle2
