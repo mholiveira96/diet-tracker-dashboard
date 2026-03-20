@@ -198,18 +198,10 @@ export default function Dashboard() {
   const safeSummary = summary || { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const safeGoals = goals || { calories: 2200, protein: 180, carbs: 180, fat: 84 };
   const workoutInfo = workouts || { total: 0, duration: 0, count: 0 };
+  const monthlyKpis = data?.monthly_kpis || { days_with_data: 0, total_meals_kcal: 0, total_workouts_kcal: 0, total_net_kcal: 0, avg_net_kcal: 0, days_within_goal: 0, monthly_savings: 0 };
   
-  const currentMonthHistory = history ? history.filter((d: any) => {
-    const dDate = new Date(d.day);
-    const now = new Date();
-    return dDate.getMonth() === now.getMonth() && dDate.getFullYear() === now.getFullYear();
-  }) : [];
-  
-  const daysInMonth = currentMonthHistory.length;
-  const totalKcalConsumed = currentMonthHistory.reduce((acc: number, curr: any) => acc + curr.kcal, 0);
-  const tdeeTotal = (safeGoals.calories + 500) * daysInMonth; 
-  const monthlySavings = (tdeeTotal - totalKcalConsumed);
-  const expectedWeightLoss = monthlySavings / 7700;
+  const monthlySavings = monthlyKpis.monthly_savings || 0;
+  const expectedWeightLoss = Math.max(monthlySavings, 0) / 7700;
 
   const caloriesIngested = safeSummary.kcal || 0;
   const caloriesBurned = workoutInfo.total || 0;
@@ -475,7 +467,7 @@ export default function Dashboard() {
                 <p className="text-[9px] text-green-400/60 font-black uppercase tracking-[0.2em] mb-2">Aderência Calorias Líquidas</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-black text-green-500">
-                    {history && history.filter((d: any) => (d.kcal - (d.workouts_kcal || 0)) <= safeGoals.calories).length} <span className="text-sm font-medium text-green-500/40">/ {history ? history.length : 0}</span>
+                    {monthlyKpis.days_within_goal} <span className="text-sm font-medium text-green-500/40">/ {monthlyKpis.days_with_data}</span>
                   </span>
                   <span className="text-[10px] text-green-400/40 font-mono font-bold uppercase tracking-tighter">dias ok</span>
                 </div>
