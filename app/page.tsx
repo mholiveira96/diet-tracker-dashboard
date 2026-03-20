@@ -198,7 +198,19 @@ export default function Dashboard() {
   const safeSummary = summary || { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const safeGoals = goals || { calories: 2200, protein: 180, carbs: 180, fat: 84 };
   const workoutInfo = workouts || { total: 0, duration: 0, count: 0 };
-  const monthlyKpis = data?.monthly_kpis || { days_with_data: 0, total_meals_kcal: 0, total_workouts_kcal: 0, total_net_kcal: 0, avg_net_kcal: 0, days_within_goal: 0, monthly_savings: 0 };
+
+  // Compute monthly KPIs from history (which now has net_kcal per day)
+  const monthlyKpis = (() => {
+    const validHistory = (history || []).filter((d: any) => d.day && d.day !== 'None');
+    const days_with_data = validHistory.length;
+    const total_meals_kcal = validHistory.reduce((s: number, d: any) => s + (d.kcal || 0), 0);
+    const total_workouts_kcal = validHistory.reduce((s: number, d: any) => s + (d.workouts_kcal || 0), 0);
+    const total_net_kcal = total_meals_kcal - total_workouts_kcal;
+    const avg_net_kcal = days_with_data > 0 ? total_net_kcal / days_with_data : 0;
+    const days_within_goal = validHistory.filter((d: any) => d.net_kcal <= safeGoals.calories).length;
+    const monthly_savings = validHistory.reduce((s: number, d: any) => s + Math.max(safeGoals.calories - d.net_kcal, 0), 0);
+    return { days_with_data, total_meals_kcal, total_workouts_kcal, total_net_kcal, avg_net_kcal, days_within_goal, monthly_savings };
+  })();
   
   const monthlySavings = monthlyKpis.monthly_savings || 0;
   const expectedWeightLoss = Math.max(monthlySavings, 0) / 7700;
