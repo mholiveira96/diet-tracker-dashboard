@@ -208,7 +208,8 @@ export default function Dashboard() {
     const total_net_kcal = total_meals_kcal - total_workouts_kcal;
     const avg_net_kcal = days_with_data > 0 ? total_net_kcal / days_with_data : 0;
     const days_within_goal = validHistory.filter((d: any) => d.net_kcal <= safeGoals.calories).length;
-    const monthly_savings = validHistory.reduce((s: number, d: any) => s + Math.max(safeGoals.calories - d.net_kcal, 0), 0);
+    // savings = sum of (goal - net_kcal) for all days — negative if over goal
+    const monthly_savings = validHistory.reduce((s: number, d: any) => s + (safeGoals.calories - d.net_kcal), 0);
     return { days_with_data, total_meals_kcal, total_workouts_kcal, total_net_kcal, avg_net_kcal, days_within_goal, monthly_savings };
   })();
   
