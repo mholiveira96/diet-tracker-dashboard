@@ -39,8 +39,28 @@ export async function GET(request: Request) {
       args: [targetDate === "now" ? undefined : targetDate]
     });
     
-    // History (last 30 days of meals)
-    const historyRes = await client.execute("SELECT date(logged_at, '-3 hours') as day, SUM(calories) as kcal, SUM(protein) as protein FROM meals GROUP BY day ORDER BY day DESC LIMIT 30");
+    // History (last 30 days: meals + workouts per day = net calories)
+    const historyRes = await client.execute({
+      sql: `
+        SELECT 
+          day,
+          SUM(kcal) as kcal,
+          SUM(protein) as protein,
+          SUM(workouts_kcal) as workouts_kcal,
+          SUM(kcal) - SUM(workouts_kcal) as net_kcal
+        FROM (
+          SELECT date(logged_at, '-3 hours') as day, SUM(calories) as kcal, SUM(protein) as protein, 0 as workouts_kcal
+          FROM meals GROUP BY date(logged_at, '-3 hours')
+          UNION ALL
+          SELECT date(logged_at, '-3 hours') as day, 0 as kcal, 0 as protein, SUM(calories) as workouts_kcal
+          FROM workouts GROUP BY date(logged_at, '-3 hours')
+        )
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT 30
+      `,
+      args: []
+    });
     
     // Activity (wearable)
     const activityRes = await client.execute({
