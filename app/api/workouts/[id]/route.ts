@@ -13,7 +13,7 @@ export async function PUT(
   const { id } = params;
   const numericId = parseInt(id);
   const body = await request.json();
-  const { modality, duration_min, calories } = body;
+  const { modality, duration_min, calories, logged_at } = body;
 
   const url = process.env.TURSO_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -28,9 +28,18 @@ export async function PUT(
       authToken: authToken.trim()
     });
 
+    // Build dynamic UPDATE — only update logged_at if provided
+    const fields = ['modality = ?', 'duration_min = ?', 'calories = ?'];
+    const values: any[] = [modality, duration_min, calories];
+    if (logged_at) {
+      fields.push('logged_at = ?');
+      values.push(logged_at);
+    }
+    values.push(numericId);
+
     const result = await client.execute({
-      sql: "UPDATE workouts SET modality = ?, duration_min = ?, calories = ? WHERE id = ?",
-      args: [modality, duration_min, calories, numericId]
+      sql: `UPDATE workouts SET ${fields.join(', ')} WHERE id = ?`,
+      args: values
     });
 
     if (result.rowsAffected === 0) {

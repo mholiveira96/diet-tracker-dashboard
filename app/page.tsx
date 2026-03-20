@@ -76,6 +76,7 @@ export default function Dashboard() {
   const openEditModal = (item: any) => {
     setSelectedItem(item);
     setIsEditing(true);
+    const itemDate = item.logged_at ? item.logged_at.split(' ')[0] : '';
     setEditFormData({
       description: item.description || item.modality,
       amount: item.amount || item.duration_min,
@@ -83,7 +84,8 @@ export default function Dashboard() {
       calories: item.calories,
       protein: item.protein || 0,
       carbs: item.carbs || 0,
-      fat: item.fat || 0
+      fat: item.fat || 0,
+      date: itemDate
     });
   };
 
@@ -105,7 +107,8 @@ export default function Dashboard() {
           body: JSON.stringify({
             modality: editFormData.description,
             duration_min: parseInt(editFormData.amount),
-            calories: parseInt(editFormData.calories)
+            calories: parseInt(editFormData.calories),
+            logged_at: editFormData.date ? `${editFormData.date} ${new Date().toTimeString().slice(0,8)}` : null
           })
         });
 
@@ -124,7 +127,8 @@ export default function Dashboard() {
             calories: parseFloat(editFormData.calories),
             protein: parseFloat(editFormData.protein),
             carbs: parseFloat(editFormData.carbs),
-            fat: parseFloat(editFormData.fat)
+            fat: parseFloat(editFormData.fat),
+            logged_at: editFormData.date ? `${editFormData.date} ${new Date().toTimeString().slice(0,8)}` : null
           })
         });
 
@@ -904,12 +908,22 @@ export default function Dashboard() {
                     <div className="space-y-6">
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Modalidade</label>
-                        <input 
+                        <input
                           type="text"
                           value={editFormData.description || ''}
                           onChange={(e) => handleEditChange('description', e.target.value)}
                           className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
                           placeholder="Ex: Musculação, Cardio"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Data do Treino</label>
+                        <input
+                          type="date"
+                          value={editFormData.date || ''}
+                          onChange={(e) => handleEditChange('date', e.target.value)}
+                          className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
                         />
                       </div>
 
@@ -946,6 +960,16 @@ export default function Dashboard() {
                           onChange={(e) => handleEditChange('description', e.target.value)}
                           className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
                           placeholder="Ex: Frango grelhado, Arroz integral"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Data da Refeição</label>
+                        <input
+                          type="date"
+                          value={editFormData.date || ''}
+                          onChange={(e) => handleEditChange('date', e.target.value)}
+                          className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
                         />
                       </div>
 

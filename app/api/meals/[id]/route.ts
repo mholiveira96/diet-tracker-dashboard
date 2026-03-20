@@ -14,7 +14,7 @@ export async function PUT(
   const numericId = parseInt(id);
   const body = await request.json();
 
-  const { description, amount, unit, calories, protein, carbs, fat } = body;
+  const { description, amount, unit, calories, protein, carbs, fat, logged_at } = body;
 
   const url = process.env.TURSO_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -29,11 +29,18 @@ export async function PUT(
       authToken: authToken.trim()
     });
 
+    // Build dynamic UPDATE — only update logged_at if provided
+    const fields = ['description = ?', 'amount = ?', 'unit = ?', 'calories = ?', 'protein = ?', 'carbs = ?', 'fat = ?'];
+    const values: any[] = [description, amount, unit, calories, protein, carbs, fat];
+    if (logged_at) {
+      fields.push('logged_at = ?');
+      values.push(logged_at);
+    }
+    values.push(numericId);
+
     const result = await client.execute({
-      sql: `UPDATE meals
-       SET description = ?, amount = ?, unit = ?, calories = ?, protein = ?, carbs = ?, fat = ?
-       WHERE id = ?`,
-      args: [description, amount, unit, calories, protein, carbs, fat, numericId]
+      sql: `UPDATE meals SET ${fields.join(', ')} WHERE id = ?`,
+      args: values
     });
 
     if (result.rowsAffected === 0) {
