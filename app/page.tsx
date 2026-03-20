@@ -98,7 +98,8 @@ export default function Dashboard() {
       setLoading(true);
       
       if (selectedItem.type === 'workout') {
-        const response = await fetch(`/api/workouts/${selectedItem.id}`, {
+        const workoutId = selectedItem.id.replace('w-', '');
+        const response = await fetch(`/api/workouts/${workoutId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -156,7 +157,8 @@ export default function Dashboard() {
         };
       });
 
-      const endpoint = item.type === 'workout' ? `/api/workouts/${item.id}` : `/api/meals/${item.id}`;
+      const workoutId = item.type === 'workout' ? item.id.replace('w-', '') : item.id;
+      const endpoint = item.type === 'workout' ? `/api/workouts/${workoutId}` : `/api/meals/${item.id}`;
       
       fetch(endpoint, { method: 'DELETE' })
         .then(res => {
