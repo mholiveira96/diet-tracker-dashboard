@@ -80,36 +80,35 @@ export async function GET(request: Request) {
       args: [targetDate === "now" ? undefined : targetDate]
     });
 
-    // Monthly KPIs: proper calculation using meals - workouts per day
-    const monthlyKpiRes = await client.execute(`
-      WITH days AS (
+    // Monthly KPIs: proper calculation using history data
+    // monthly_savings = SUM of (goal - net_kcal) for days where net_kcal < goal
+    const goalsRow = goalsRes.rows[0] || { calories: 2200, protein: 180, carbs: 180, fat: 84 };
+    const goalCal = goalsRow.calories || 2200;
+    const monthlyKpiRes = await client.execute({
+      sql: `
         SELECT 
-          date(meals.date_col, '-3 hours') as day,
-          COALESCE(SUM(meals.calories), 0) as meals_kcal,
-          COALESCE(wrk.workout_kcal, 0) as workouts_kcal,
-          COALESCE(SUM(meals.calories), 0) - COALESCE(wrk.workout_kcal, 0) as net_kcal
+          COUNT(*) as days_with_data,
+          SUM(kcal) as total_meals_kcal,
+          SUM(workouts_kcal) as total_workouts_kcal,
+          SUM(kcal) - SUM(workouts_kcal) as total_net_kcal,
+          (SUM(kcal) - SUM(workouts_kcal)) / COUNT(*) as avg_net_kcal,
+          SUM(CASE WHEN (kcal - workouts_kcal) <= ? THEN 1 ELSE 0 END) as days_within_goal,
+          SUM(CASE WHEN (kcal - workouts_kcal) < ? THEN (? - (kcal - workouts_kcal)) ELSE 0 END) as monthly_savings
         FROM (
-          SELECT date(logged_at, '-3 hours') as date_col, calories FROM meals
+          SELECT date(logged_at, '-3 hours') as day, SUM(calories) as kcal, SUM(protein) as protein, 0 as workouts_kcal
+          FROM meals
           WHERE strftime('%Y-%m', logged_at, '-3 hours') = strftime('%Y-%m', 'now', '-3 hours')
-        ) meals
-        LEFT JOIN (
-          SELECT date(logged_at, '-3 hours') as date_col, SUM(calories) as workout_kcal
+          GROUP BY date(logged_at, '-3 hours')
+          UNION ALL
+          SELECT date(logged_at, '-3 hours') as day, 0 as kcal, 0 as protein, SUM(calories) as workouts_kcal
           FROM workouts
           WHERE strftime('%Y-%m', logged_at, '-3 hours') = strftime('%Y-%m', 'now', '-3 hours')
           GROUP BY date(logged_at, '-3 hours')
-        ) wrk ON meals.date_col = wrk.date_col
-        GROUP BY meals.date_col
-      )
-      SELECT 
-        COUNT(*) as days_with_data,
-        SUM(meals_kcal) as total_meals_kcal,
-        SUM(workouts_kcal) as total_workouts_kcal,
-        SUM(net_kcal) as total_net_kcal,
-        SUM(net_kcal) / COUNT(*) as avg_net_kcal,
-        SUM(CASE WHEN net_kcal <= (SELECT COALESCE(calories, 2200) FROM goals ORDER BY id DESC LIMIT 1) THEN 1 ELSE 0 END) as days_within_goal,
-        SUM((SELECT COALESCE(calories, 2200) FROM goals ORDER BY id DESC LIMIT 1) - net_kcal) as monthly_savings
-      FROM days
-    `);
+        )
+        GROUP BY day
+      `,
+      args: [goalCal, goalCal, goalCal]
+    });
 
     console.log('[API] All queries executed successfully');
 
