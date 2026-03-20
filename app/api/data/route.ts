@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     
     // Items for the day
     const itemsRes = await client.execute({
-      sql: `SELECT description, amount, unit, calories, protein, carbs, fat, logged_at FROM meals WHERE date(logged_at, '-3 hours') = ? ORDER BY logged_at DESC`,
+      sql: `SELECT id, description, amount, unit, calories, protein, carbs, fat, logged_at FROM meals WHERE date(logged_at, '-3 hours') = ? ORDER BY logged_at DESC`,
       args: [targetDate === "now" ? undefined : targetDate]
     });
     
