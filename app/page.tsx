@@ -1,16 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { 
-  Activity, 
-  Utensils, 
-  Target, 
+import {
+  Activity,
+  Utensils,
   ChevronRight,
   ChevronLeft,
   Flame,
   Dumbbell,
   Calendar,
-  TrendingUp,
-  CheckCircle2,
   Footprints,
   Zap,
   X,
@@ -27,6 +24,7 @@ import {
 import {
   BarChart,
   AreaChart,
+  ResponsiveContainer,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -35,9 +33,7 @@ import {
   Area
 } from "recharts";
 
-// TypeScript workaround for Loader2/CheckCircle2
 const LoaderIcon: React.FC<React.SVGAttributes<SVGSVGElement>> = (props) => <Activity {...props} />;
-const CheckIcon: React.FC<React.SVGAttributes<SVGSVGElement>> = (props) => <CheckCircle2 {...props} />;
 
 export default function Dashboard() {
   const [data, setData] = useState<any>(null);
@@ -55,6 +51,11 @@ export default function Dashboard() {
       .then(res => res.json())
       .then(d => {
         setData(d);
+      })
+      .catch(err => {
+        console.error('Failed to fetch data:', err);
+      })
+      .finally(() => {
         setLoading(false);
       });
   };
@@ -218,7 +219,7 @@ export default function Dashboard() {
 
   const caloriesIngested = safeSummary.kcal || 0;
   const caloriesBurned = workoutInfo.total || 0;
-  const caloriesNet = Math.max(caloriesIngested - caloriesBurned, 0);
+  const caloriesNet = caloriesIngested - caloriesBurned;
   
   const netPercent = Math.min((caloriesNet / safeGoals.calories) * 100, 100);
   const kcalPercent = Math.min(((safeSummary.kcal || 0) / safeGoals.calories) * 100, 100);
@@ -226,9 +227,9 @@ export default function Dashboard() {
   const formattedWorkoutDuration = Math.round(workoutInfo.duration);
   const averageWorkoutLength = workoutInfo.count ? (workoutInfo.duration / workoutInfo.count).toFixed(1) : '0.0';
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  const calendarRef = new Date(selectedDate + 'T12:00:00');
+  const currentMonth = calendarRef.getMonth();
+  const currentYear = calendarRef.getFullYear();
   const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   
@@ -520,6 +521,7 @@ export default function Dashboard() {
                  </div>
               </div>
               <div className="h-[300px] w-full mt-6">
+                <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={history ? [...history].reverse().map(d => ({ ...d, calorie_goal: safeGoals.calories })) : []}>
                   <defs>
                     <linearGradient id="colorKcal" x1="0" y1="0" x2="0" y2="1">
@@ -574,6 +576,7 @@ export default function Dashboard() {
                     animationDuration={2500}
                   />
                 </AreaChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
@@ -650,8 +653,8 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-8 bg-[#0f0f0f] border border-white/5 rounded-[2.5rem] p-10">
+        <section>
+          <div className="bg-[#0f0f0f] border border-white/5 rounded-[2.5rem] p-10">
             <div className="flex items-center justify-between mb-10">
               <div className="flex items-center gap-3">
                 <Utensils className="w-5 h-5 text-blue-500" />
@@ -721,49 +724,6 @@ export default function Dashboard() {
                 );
               })}
             </div>
-          </div>
-
-          <div className="lg:col-span-4 space-y-6">
-             <div className="bg-gradient-to-br from-[#0f0f0f] to-[#080808] border border-white/5 rounded-[2.5rem] p-10 shadow-2xl">
-                <div className="flex items-center gap-3 mb-10">
-                  <TrendingUp className="w-5 h-5 text-blue-500" />
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-300">Insights IA</h3>
-                </div>
-                
-                <div className="space-y-8">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                       <p className="text-[9px] text-blue-400 font-black uppercase tracking-[0.2em]">GAP PROTEICO</p>
-                       <span className="text-[10px] font-mono text-gray-600 font-bold">{Math.max(safeGoals.protein - safeSummary.protein, 0).toFixed(0)}g LEFT</span>
-                    </div>
-                    <p className="text-xs text-gray-400 leading-relaxed font-medium">
-                      Para bater o target de <span className="text-white font-bold">{safeGoals.protein}g</span>, você ainda precisa de aproximadamente <span className="text-blue-500 font-bold">2.5 scoops</span> de Whey ou <span className="text-blue-500 font-bold">300g</span> de frango grelhado.
-                    </p>
-                  </div>
-
-                  <div className="h-px bg-white/5 w-full" />
-
-                  <div className="space-y-3">
-                    <p className="text-[9px] text-green-400 font-black uppercase tracking-[0.2em]">CONSISTÊNCIA (LÍQUIDAS)</p>
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                         <CheckIcon className="w-5 h-5 text-green-500" />
-                      </div>
-                      <p className="text-xs text-gray-400 leading-relaxed font-medium pt-1">
-                        Sua ingestão calórica média na semana está <span className="text-white font-bold">{avgKcal < safeGoals.calories ? 'abaixo' : 'acima'}</span> do limite planejado (calorias líquidas considerando treinos).
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-white/5 w-full" />
-
-                  <div className="bg-white/5 p-6 rounded-3xl border border-white/5 italic">
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      "A vitória na balança é decidida no preparo da refeição, não no momento da fome."
-                    </p>
-                  </div>
-                </div>
-             </div>
           </div>
         </section>
       </main>
@@ -862,8 +822,8 @@ export default function Dashboard() {
                 </div>
             
                 <div className="p-8 bg-white/5 border-t border-white/5 flex justify-between">
-                  <button 
-                    onClick={openEditModal}
+                  <button
+                    onClick={() => openEditModal(selectedItem)}
                     className="px-6 py-3 rounded-xl bg-blue-600 text-white font-black uppercase text-[10px] tracking-[0.2em] hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -1066,22 +1026,11 @@ export default function Dashboard() {
                     {loading ? <LoaderIcon className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                     <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
                   </button>
-                  <button 
+                  <button
                     onClick={closeEditModal}
                     className="px-10 py-4 rounded-xl bg-gray-600 text-white font-black uppercase text-[10px] tracking-[0.2em] hover:bg-gray-700 transition-colors"
                   >
                     Cancelar
-                  </button>
-                  <button 
-                    onClick={() => {
-                      closeEditModal();
-                      setTimeout(() => setSelectedItem(null), 200);
-                    }}
-                    disabled={loading}
-                    className="px-10 py-4 rounded-xl bg-red-600 text-white font-black uppercase text-[10px] tracking-[0.2em] hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loading ? <LoaderIcon className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                    <span>Deletar</span>
                   </button>
                 </div>
               </>

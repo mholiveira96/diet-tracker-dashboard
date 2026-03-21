@@ -2,80 +2,83 @@ import { createClient } from "@libsql/client/web";
 
 export const dynamic = "force-dynamic";
 
+let _client: ReturnType<typeof createClient> | null = null;
+
+function getClient() {
+  if (_client) return _client;
+  const url = process.env.TURSO_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  if (!url || !authToken) throw new Error("Missing credentials");
+  _client = createClient({
+    url: url.trim().replace('libsql://', 'https://'),
+    authToken: authToken.trim()
+  });
+  return _client;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const targetDate = searchParams.get('date') || "now";
 
-  const url = process.env.TURSO_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!url || !authToken) {
-    return Response.json({ error: "Missing credentials" }, { status: 500 });
-  }
-
   try {
-    const client = createClient({ 
-      url: url.trim().replace('libsql://', 'https://'), 
-      authToken: authToken.trim() 
-    });
-    
-    const targetDateParam = targetDate === "now" ? undefined : targetDate;
+    const client = getClient();
 
-    // Summary (meals for the day)
-    const summaryRes = await client.execute({
-      sql: `SELECT COALESCE(SUM(calories), 0) as kcal, COALESCE(SUM(protein), 0) as protein, COALESCE(SUM(carbs), 0) as carbs, COALESCE(SUM(fat), 0) as fat FROM meals WHERE date(logged_at, '-3 hours') = ?`,
-      args: [targetDateParam]
-    });
-    
-    // Goals
-    const goalsRes = await client.execute("SELECT calories, protein, carbs, fat FROM goals ORDER BY id DESC LIMIT 1");
-    
-    // Items for the day
-    const itemsRes = await client.execute({
-      sql: `SELECT id, description, amount, unit, calories, protein, carbs, fat, logged_at FROM meals WHERE date(logged_at, '-3 hours') = ? ORDER BY logged_at DESC`,
-      args: [targetDateParam]
-    });
-    
-    // History (last 30 days: meals + workouts per day = net calories)
-    const historyRes = await client.execute({
-      sql: `
-        SELECT 
-          day,
-          SUM(kcal) as kcal,
-          SUM(protein) as protein,
-          SUM(workouts_kcal) as workouts_kcal,
-          SUM(kcal) - SUM(workouts_kcal) as net_kcal
-        FROM (
-          SELECT date(logged_at, '-3 hours') as day, SUM(calories) as kcal, SUM(protein) as protein, 0 as workouts_kcal
-          FROM meals GROUP BY date(logged_at, '-3 hours')
-          UNION ALL
-          SELECT date(logged_at, '-3 hours') as day, 0 as kcal, 0 as protein, SUM(calories) as workouts_kcal
-          FROM workouts GROUP BY date(logged_at, '-3 hours')
-        )
-        GROUP BY day
-        ORDER BY day DESC
-        LIMIT 30
-      `,
-      args: []
-    });
-    
-    // Activity (wearable)
-    const activityRes = await client.execute({
-      sql: `SELECT type, value, unit, logged_at FROM activity WHERE date(logged_at, '-3 hours') = ? ORDER BY logged_at DESC`,
-      args: [targetDateParam]
-    });
-    
-    // Workout summary for the day
-    const workoutSummaryRes = await client.execute({
-      sql: `SELECT COALESCE(SUM(calories), 0) as workout_kcal, COALESCE(SUM(duration_min), 0) as duration_min, COUNT(*) as workout_count FROM workouts WHERE date(logged_at, '-3 hours') = ?`,
-      args: [targetDateParam]
-    });
-    
-    // Workout items for the day
-    const workoutItemsRes = await client.execute({
-      sql: `SELECT id, modality, duration_min, calories, logged_at FROM workouts WHERE date(logged_at, '-3 hours') = ? ORDER BY logged_at DESC`,
-      args: [targetDateParam]
-    });
+    const dateFilter = targetDate === "now"
+      ? `date('now', '-3 hours')`
+      : `?`;
+    const dateArg = targetDate === "now" ? [] : [targetDate];
+
+    const [summaryRes, goalsRes, itemsRes, historyRes, activityRes, workoutSummaryRes, workoutItemsRes] = await Promise.all([
+      // Summary (meals for the day)
+      client.execute({
+        sql: `SELECT COALESCE(SUM(calories), 0) as kcal, COALESCE(SUM(protein), 0) as protein, COALESCE(SUM(carbs), 0) as carbs, COALESCE(SUM(fat), 0) as fat FROM meals WHERE date(logged_at, '-3 hours') = ${dateFilter}`,
+        args: dateArg
+      }),
+      // Goals
+      client.execute("SELECT calories, protein, carbs, fat FROM goals ORDER BY id DESC LIMIT 1"),
+      // Items for the day
+      client.execute({
+        sql: `SELECT id, description, amount, unit, calories, protein, carbs, fat, logged_at FROM meals WHERE date(logged_at, '-3 hours') = ${dateFilter} ORDER BY logged_at DESC`,
+        args: dateArg
+      }),
+      // History (last 30 days: meals + workouts per day = net calories)
+      client.execute({
+        sql: `
+          SELECT
+            day,
+            SUM(kcal) as kcal,
+            SUM(protein) as protein,
+            SUM(workouts_kcal) as workouts_kcal,
+            SUM(kcal) - SUM(workouts_kcal) as net_kcal
+          FROM (
+            SELECT date(logged_at, '-3 hours') as day, SUM(calories) as kcal, SUM(protein) as protein, 0 as workouts_kcal
+            FROM meals GROUP BY date(logged_at, '-3 hours')
+            UNION ALL
+            SELECT date(logged_at, '-3 hours') as day, 0 as kcal, 0 as protein, SUM(calories) as workouts_kcal
+            FROM workouts GROUP BY date(logged_at, '-3 hours')
+          )
+          GROUP BY day
+          ORDER BY day DESC
+          LIMIT 30
+        `,
+        args: []
+      }),
+      // Activity (wearable)
+      client.execute({
+        sql: `SELECT type, value, unit, logged_at FROM activity WHERE date(logged_at, '-3 hours') = ${dateFilter} ORDER BY logged_at DESC`,
+        args: dateArg
+      }),
+      // Workout summary for the day
+      client.execute({
+        sql: `SELECT COALESCE(SUM(calories), 0) as workout_kcal, COALESCE(SUM(duration_min), 0) as duration_min, COUNT(*) as workout_count FROM workouts WHERE date(logged_at, '-3 hours') = ${dateFilter}`,
+        args: dateArg
+      }),
+      // Workout items for the day
+      client.execute({
+        sql: `SELECT id, modality, duration_min, calories, logged_at FROM workouts WHERE date(logged_at, '-3 hours') = ${dateFilter} ORDER BY logged_at DESC`,
+        args: dateArg
+      }),
+    ]);
 
     const mealItems = (itemsRes.rows || []).map((row: any) => ({ ...row, type: 'meal' }));
     const workoutRows = workoutItemsRes.rows || [];
