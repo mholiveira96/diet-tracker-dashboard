@@ -43,7 +43,16 @@ export default function Dashboard() {
   const [editFormData, setEditFormData] = useState<any>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const isModalWorkout = selectedItem?.type === 'workout';
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    // The backend stores timestamps in UTC and applies a -3 hour offset to determine
+    // the local calendar date (UTC-3 / BRT timezone). We must derive "today" using
+    // the same offset so that the initial date filter matches what the DB returns.
+    // Using toISOString() alone would give the UTC date, which drifts from the local
+    // date between 00:00 and 03:00 UTC, causing today's records to be invisible.
+    const now = new Date();
+    const utcMinus3 = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    return utcMinus3.toISOString().split('T')[0];
+  });
 
   const fetchData = (date: string) => {
     setLoading(true);
