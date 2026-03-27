@@ -22,7 +22,6 @@ import {
   AlertCircle
 } from "lucide-react";
 import {
-  BarChart,
   AreaChart,
   ResponsiveContainer,
   CartesianGrid,
@@ -374,11 +373,19 @@ export default function Dashboard() {
               <div className={`mt-2 text-[9px] font-mono uppercase tracking-[0.25em] transition-opacity ${isRefreshing ? 'text-blue-400 opacity-100' : 'text-gray-600 opacity-60'}`}>
                 {isRefreshing ? 'Carregando dia...' : 'Dados do dia'}
               </div>
+              {selectedDate !== new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0] && (
+                <button
+                  onClick={() => setSelectedDate(new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0])}
+                  className="mt-2 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-blue-400 border border-blue-500/30 rounded-full hover:bg-blue-500/10 transition-all"
+                >
+                  Hoje
+                </button>
+              )}
             </div>
 
-            <button 
+            <button
               onClick={() => changeDate(1)}
-              disabled={selectedDate === new Date().toISOString().split('T')[0]}
+              disabled={selectedDate === new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]}
               className="p-3 hover:bg-white/5 rounded-xl transition-all hover:scale-110 active:scale-95 disabled:opacity-10 disabled:scale-100"
             >
               <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -477,6 +484,47 @@ export default function Dashboard() {
                   <span>Restam: {Math.max(safeGoals.protein - safeSummary.protein, 0).toFixed(0)}g</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-1 h-6 bg-yellow-500 rounded-full" />
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Macros do Dia</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-[#0f0f0f] border border-white/5 rounded-[2rem] p-6 hover:border-green-500/20 transition-all">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                  <PieChart className="w-5 h-5 text-green-400" />
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500">Carboidratos</p>
+              </div>
+              <p className="text-4xl font-black tabular-nums tracking-tighter">{Math.round(safeSummary.carbs || 0)}<span className="text-xl font-medium text-gray-700 ml-1">/ {safeGoals.carbs}g</span></p>
+              <div className="mt-4 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ${Math.min(((safeSummary.carbs || 0) / safeGoals.carbs) * 100, 100) > 100 ? 'bg-red-500' : 'bg-green-500'}`}
+                  style={{ width: `${Math.min(((safeSummary.carbs || 0) / safeGoals.carbs) * 100, 100)}%` }}
+                />
+              </div>
+              <p className="text-[9px] text-gray-600 font-mono uppercase tracking-[0.3em] mt-2">{Math.min(((safeSummary.carbs || 0) / safeGoals.carbs) * 100, 100).toFixed(1)}% atingido</p>
+            </div>
+            <div className="bg-[#0f0f0f] border border-white/5 rounded-[2rem] p-6 hover:border-yellow-500/20 transition-all">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20">
+                  <Cookie className="w-5 h-5 text-yellow-400" />
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500">Gorduras</p>
+              </div>
+              <p className="text-4xl font-black tabular-nums tracking-tighter">{Math.round(safeSummary.fat || 0)}<span className="text-xl font-medium text-gray-700 ml-1">/ {safeGoals.fat}g</span></p>
+              <div className="mt-4 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ${Math.min(((safeSummary.fat || 0) / safeGoals.fat) * 100, 100) > 100 ? 'bg-red-500' : 'bg-yellow-500'}`}
+                  style={{ width: `${Math.min(((safeSummary.fat || 0) / safeGoals.fat) * 100, 100)}%` }}
+                />
+              </div>
+              <p className="text-[9px] text-gray-600 font-mono uppercase tracking-[0.3em] mt-2">{Math.min(((safeSummary.fat || 0) / safeGoals.fat) * 100, 100).toFixed(1)}% atingido</p>
             </div>
           </div>
         </section>
@@ -757,12 +805,12 @@ export default function Dashboard() {
                   <Utensils className="w-16 h-16 stroke-[1px]" />
                   <p className="text-[10px] uppercase font-black tracking-[0.3em]">Aguardando dados...</p>
                 </div>
-              ) : items && items.map((item: any, i: number) => {
+              ) : items && items.map((item: any) => {
                 const isWorkout = item.type === 'workout';
                 const badgeText = `${item.amount}${item.unit}${isWorkout ? ' treino' : ''}`;
                 return (
-                  <div 
-                    key={i} 
+                  <div
+                    key={item.id}
                     className="group flex items-center justify-between p-6 rounded-[1.5rem] bg-[#121212] border border-white/0 hover:border-white/5 hover:bg-[#161616] transition-all duration-300 cursor-default relative"
                   >
                     <div className="flex items-center gap-6">
