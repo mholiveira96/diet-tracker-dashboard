@@ -2,6 +2,11 @@ import { createClient } from "@libsql/client/web";
 
 export const dynamic = "force-dynamic";
 
+function normalizeLoggedAt(value?: string | null) {
+  if (!value) return null;
+  return value.replace('T', ' ').replace(/Z$/, '').slice(0, 19);
+}
+
 interface RouteParams {
   id: string;
 }
@@ -14,6 +19,7 @@ export async function PUT(
   const numericId = parseInt(id);
   const body = await request.json();
   const { modality, duration_min, calories, logged_at } = body;
+  const normalizedLoggedAt = normalizeLoggedAt(logged_at);
 
   const url = process.env.TURSO_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -31,9 +37,9 @@ export async function PUT(
     // Build dynamic UPDATE — only update logged_at if provided
     const fields = ['modality = ?', 'duration_min = ?', 'calories = ?'];
     const values: any[] = [modality, duration_min, calories];
-    if (logged_at) {
+    if (normalizedLoggedAt) {
       fields.push('logged_at = ?');
-      values.push(logged_at);
+      values.push(normalizedLoggedAt);
     }
     values.push(numericId);
 

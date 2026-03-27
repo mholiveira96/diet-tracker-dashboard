@@ -35,6 +35,64 @@ import {
 
 const LoaderIcon: React.FC<React.SVGAttributes<SVGSVGElement>> = (props) => <Activity {...props} />;
 
+const APP_TIMEZONE = 'America/Fortaleza';
+
+function parseStoredUtcTimestamp(timestamp?: string | null) {
+  if (!timestamp) return null;
+  const normalized = timestamp.includes('T')
+    ? timestamp.replace(' ', 'T')
+    : timestamp.replace(' ', 'T');
+  return new Date(`${normalized}Z`);
+}
+
+function formatLocalDate(timestamp?: string | null) {
+  const date = parseStoredUtcTimestamp(timestamp);
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+function formatLocalTime(timestamp?: string | null) {
+  const date = parseStoredUtcTimestamp(timestamp);
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: APP_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date);
+}
+
+function formatLocalDateTime(timestamp?: string | null) {
+  const date = parseStoredUtcTimestamp(timestamp);
+  if (!date || Number.isNaN(date.getTime())) return 'Horário inválido';
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: APP_TIMEZONE,
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(date);
+}
+
+function localDateTimeToStoredUtc(date: string, time: string) {
+  if (!date || !time) return null;
+  const localIso = `${date}T${time}:00-03:00`;
+  const utcDate = new Date(localIso);
+  if (Number.isNaN(utcDate.getTime())) return null;
+
+  const year = utcDate.getUTCFullYear();
+  const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(utcDate.getUTCDate()).padStart(2, '0');
+  const hours = String(utcDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(utcDate.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(utcDate.getUTCSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -86,7 +144,6 @@ export default function Dashboard() {
   const openEditModal = (item: any) => {
     setSelectedItem(item);
     setIsEditing(true);
-    const itemDate = item.logged_at ? item.logged_at.split(' ')[0] : '';
     setEditFormData({
       description: item.description || item.modality,
       amount: item.amount || item.duration_min,
@@ -95,7 +152,8 @@ export default function Dashboard() {
       protein: item.protein || 0,
       carbs: item.carbs || 0,
       fat: item.fat || 0,
-      date: itemDate
+      date: formatLocalDate(item.logged_at),
+      time: formatLocalTime(item.logged_at)
     });
   };
 
@@ -108,6 +166,10 @@ export default function Dashboard() {
     
     try {
       setLoading(true);
+      const loggedAt = localDateTimeToStoredUtc(
+        editFormData.date,
+        editFormData.time || '12:00'
+      );
       
       if (selectedItem.type === 'workout') {
         const workoutId = selectedItem.id.replace('w-', '');
@@ -118,7 +180,7 @@ export default function Dashboard() {
             modality: editFormData.description,
             duration_min: parseInt(editFormData.amount),
             calories: parseInt(editFormData.calories),
-            logged_at: editFormData.date ? `${editFormData.date} ${new Date().toTimeString().slice(0,8)}` : null
+            logged_at: loggedAt
           })
         });
 
@@ -138,7 +200,7 @@ export default function Dashboard() {
             protein: parseFloat(editFormData.protein),
             carbs: parseFloat(editFormData.carbs),
             fat: parseFloat(editFormData.fat),
-            logged_at: editFormData.date ? `${editFormData.date} ${new Date().toTimeString().slice(0,8)}` : null
+            logged_at: loggedAt
           })
         });
 
@@ -690,8 +752,8 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-6">
                       <div className="w-12 h-12 rounded-2xl bg-white/5 flex flex-col items-center justify-center group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-all">
-                        <span className="text-[10px] font-black leading-none">{new Date(item.logged_at).getHours()}</span>
-                        <span className="text-[8px] font-mono opacity-40">{new Date(item.logged_at).getMinutes().toString().padStart(2, '0')}</span>
+                        <span className="text-[10px] font-black leading-none">{formatLocalTime(item.logged_at).split(':')[0] || '--'}</span>
+                        <span className="text-[8px] font-mono opacity-40">{formatLocalTime(item.logged_at).split(':')[1] || '--'}</span>
                       </div>
                       <div>
                         <p className="text-base font-bold text-gray-200 tracking-tight mb-1">{item.description || item.modality}</p>
@@ -826,7 +888,7 @@ export default function Dashboard() {
 
                   <div className="flex items-center gap-2 text-[10px] font-mono text-gray-600 uppercase tracking-tighter">
                      <Calendar className="w-3 h-3" />
-                     <span>Registrado em: {new Date(selectedItem.logged_at).toLocaleString('pt-BR')}</span>
+                     <span>Registrado em: {formatLocalDateTime(selectedItem.logged_at)} (UTC-3)</span>
                   </div>
                 </div>
             
@@ -891,14 +953,25 @@ export default function Dashboard() {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Data do Treino</label>
-                        <input
-                          type="date"
-                          value={editFormData.date || ''}
-                          onChange={(e) => handleEditChange('date', e.target.value)}
-                          className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
-                        />
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Data do Treino</label>
+                          <input
+                            type="date"
+                            value={editFormData.date || ''}
+                            onChange={(e) => handleEditChange('date', e.target.value)}
+                            className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Horário do Treino</label>
+                          <input
+                            type="time"
+                            value={editFormData.time || ''}
+                            onChange={(e) => handleEditChange('time', e.target.value)}
+                            className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                          />
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-6">
@@ -937,14 +1010,25 @@ export default function Dashboard() {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Data da Refeição</label>
-                        <input
-                          type="date"
-                          value={editFormData.date || ''}
-                          onChange={(e) => handleEditChange('date', e.target.value)}
-                          className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
-                        />
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Data da Refeição</label>
+                          <input
+                            type="date"
+                            value={editFormData.date || ''}
+                            onChange={(e) => handleEditChange('date', e.target.value)}
+                            className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Horário da Refeição</label>
+                          <input
+                            type="time"
+                            value={editFormData.time || ''}
+                            onChange={(e) => handleEditChange('time', e.target.value)}
+                            className="w-full px-6 py-4 rounded-xl bg-white/5 border-white/10 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                          />
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-6">

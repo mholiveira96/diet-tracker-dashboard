@@ -95,9 +95,9 @@ export async function GET(request: Request) {
       type: 'workout'
     }));
     const combinedItems = [...mealItems, ...workoutItems].sort((a, b) => {
-      const aTime = new Date(a.logged_at).getTime();
-      const bTime = new Date(b.logged_at).getTime();
-      return bTime - aTime;
+      const aTime = new Date(`${String(a.logged_at).replace(' ', 'T')}Z`).getTime();
+      const bTime = new Date(`${String(b.logged_at).replace(' ', 'T')}Z`).getTime();
+      return aTime - bTime;
     });
 
     const workoutSummary = workoutSummaryRes.rows[0] || { workout_kcal: 0, duration_min: 0, workout_count: 0 };
