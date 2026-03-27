@@ -96,6 +96,7 @@ function localDateTimeToStoredUtc(date: string, time: string) {
 export default function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
@@ -113,7 +114,14 @@ export default function Dashboard() {
   });
 
   const fetchData = (date: string) => {
-    setLoading(true);
+    const isInitialLoad = !data;
+
+    if (isInitialLoad) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
     fetch(`/api/data?date=${date}`)
       .then(res => res.json())
       .then(d => {
@@ -124,6 +132,7 @@ export default function Dashboard() {
       })
       .finally(() => {
         setLoading(false);
+        setIsRefreshing(false);
       });
   };
 
@@ -257,7 +266,7 @@ export default function Dashboard() {
     setEditFormData({});
   };
 
-  if (loading) return (
+  if (loading && !data) return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center">
       <div className="animate-pulse flex flex-col items-center">
         <LoaderIcon className="w-12 h-12 text-blue-500 mb-4 animate-spin" />
@@ -323,6 +332,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#050505] text-gray-100 font-sans selection:bg-blue-500/30 pb-20">
       <nav className="border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
+        <div className={`h-[2px] bg-blue-500/80 transition-all duration-300 origin-left ${isRefreshing ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'}`} />
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
@@ -335,8 +345,10 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-1.5 mt-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-[9px] text-gray-600 font-mono uppercase">Database Sync: OK</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${isRefreshing ? 'bg-blue-400 animate-pulse' : 'bg-blue-500 animate-pulse'}`} />
+              <span className="text-[9px] text-gray-600 font-mono uppercase">
+                {isRefreshing ? 'Atualizando...' : 'Database Sync: OK'}
+              </span>
             </div>
           </div>
         </div>
@@ -359,6 +371,9 @@ export default function Dashboard() {
               <div className="text-xl font-black font-mono text-white uppercase tracking-tighter">
                 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
               </div>
+              <div className={`mt-2 text-[9px] font-mono uppercase tracking-[0.25em] transition-opacity ${isRefreshing ? 'text-blue-400 opacity-100' : 'text-gray-600 opacity-60'}`}>
+                {isRefreshing ? 'Carregando dia...' : 'Dados do dia'}
+              </div>
             </div>
 
             <button 
@@ -372,7 +387,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-12">
+      <main className={`max-w-6xl mx-auto px-6 py-10 space-y-12 transition-opacity duration-200 ${isRefreshing ? 'opacity-85' : 'opacity-100'}`}>
         
         <section>
           <div className="flex items-center gap-2 mb-6">
