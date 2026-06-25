@@ -92,7 +92,10 @@ export async function GET(request: Request) {
       carbs: 0,
       fat: 0,
       logged_at: row.logged_at,
-      type: 'workout'
+      type: 'workout',
+      workout_type: row.workout_type,
+      intensity: row.intensity,
+      notes: row.notes
     }));
     const combinedItems = [...mealItems, ...workoutItems].sort((a, b) => {
       const aTime = new Date(`${String(a.logged_at).replace(' ', 'T')}Z`).getTime();
