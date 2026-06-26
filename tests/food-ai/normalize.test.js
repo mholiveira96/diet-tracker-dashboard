@@ -1,7 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 const {
   normalizeUserInput,
@@ -32,19 +30,36 @@ test('normalizeWithHeuristics asks for clarification on ambiguous text-only meal
   assert.match(result.question, /refei/i);
 });
 
-test('normalizeUserInput calculates structured meal lines from saved favorites without AI', async () => {
-  const result = await normalizeUserInput({
-    text: 'Almoço:\n120g carne\n100g macaxeira\n100g feijão preto\n100g arroz de leite',
-    attachments: [],
-  });
+test('normalizeUserInput returns clarify when no AI provider is configured', async () => {
+  const saved = {
+    FOOD_AI_BASE_URL: process.env.FOOD_AI_BASE_URL,
+    FOOD_AI_API_KEY: process.env.FOOD_AI_API_KEY,
+    FOOD_AI_MODEL: process.env.FOOD_AI_MODEL,
+    XIAOMI_TOKEN_PLAN_BASE_URL: process.env.XIAOMI_TOKEN_PLAN_BASE_URL,
+    XIAOMI_TOKEN_PLAN_API_KEY: process.env.XIAOMI_TOKEN_PLAN_API_KEY,
+    XIAOMI_TOKEN_PLAN_MODEL: process.env.XIAOMI_TOKEN_PLAN_MODEL,
+    DIETA_OPENROUTER_API_KEY: process.env.DIETA_OPENROUTER_API_KEY,
+    DIETA_OPENROUTER_MODEL: process.env.DIETA_OPENROUTER_MODEL,
+    DIETA_OPENROUTER_BASE_URL: process.env.DIETA_OPENROUTER_BASE_URL,
+  };
 
-  assert.equal(result.action, 'log_meal');
-  assert.equal(result.source, 'favorites-heuristic');
-  assert.equal(result.description, 'Almoço');
-  assert.equal(result.meal_items.length, 4);
-  assert.equal(result.confidence >= 0.9, true);
-  assert.equal(result.calories > 500, true);
-  assert.equal(result.protein > 30, true);
+  for (const key of Object.keys(saved)) delete process.env[key];
+
+  try {
+    const result = await normalizeUserInput({
+      text: 'Almoço 700 kcal 40 p 50 c 20 g',
+      attachments: [],
+    });
+
+    assert.equal(result.action, 'clarify');
+    assert.equal(result.source, 'ai-unavailable');
+    assert.match(result.question, /IA/i);
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test('decidePersistenceMode auto-saves high-confidence meal parses with macros', () => {
