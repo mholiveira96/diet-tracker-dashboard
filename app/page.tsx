@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, BarChart3, Camera, ChevronLeft, ChevronRight, Flame, MessageCircle, Save, Settings, Timer, Wifi, WifiOff } from "lucide-react";
+import { Activity, BarChart3, Camera, ChevronLeft, ChevronRight, Flame, MessageCircle, Save, Settings, Timer } from "lucide-react";
+import dateUtils from "../lib/date.js";
+import tabUtils from "../lib/ui/tabs.js";
 
 type TabKey = "chat" | "analytics" | "profile";
 
@@ -33,16 +35,36 @@ type AnalyticsData = {
   items: Array<any>;
 };
 
+const { getTodayInTimezone, shiftDate } = dateUtils as {
+  getTodayInTimezone: (now?: Date | string, timeZone?: string) => string;
+  shiftDate: (date: string, delta: number) => string;
+};
+
+const { TAB_STORAGE_KEY, getStoredTab } = tabUtils as {
+  TAB_STORAGE_KEY: string;
+  getStoredTab: (storage: Storage | null | undefined) => TabKey;
+};
+
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
   { key: "chat", label: "Chat", icon: MessageCircle },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
   { key: "profile", label: "Profile", icon: Settings },
 ];
 
-function todayInBrt() {
-  const now = new Date();
-  const utcMinus3 = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-  return utcMinus3.toISOString().split("T")[0];
+function describeResult(result: any) {
+  if (!result?.decision?.mode) return null;
+
+  if (result.decision.mode === "auto_save") {
+    return result.normalized?.action === "log_workout"
+      ? "Treino registrado com sucesso."
+      : "Refeição registrada com sucesso.";
+  }
+
+  if (result.decision.mode === "draft") {
+    return "Confere o rascunho e toca em salvar para registrar.";
+  }
+
+  return "Preciso de mais detalhes antes de registrar isso.";
 }
 
 function formatConfidence(value?: number | null) {
@@ -56,19 +78,22 @@ function macroProgress(value: number, goal: number) {
 }
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("chat");
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window === "undefined") return "chat";
+    return getStoredTab(window.sessionStorage);
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [stagedAttachments, setStagedAttachments] = useState<ChatAttachment[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [selectedDate, setSelectedDate] = useState(todayInBrt());
+  const [selectedDate, setSelectedDate] = useState(() => getTodayInTimezone(new Date(), "America/Sao_Paulo"));
   const [goals, setGoals] = useState({ calories: 2500, protein: 200, carbs: 270, fat: 70 });
   const [preferences, setPreferences] = useState({ parserMode: "balanced", imageRetentionDays: 180 });
   const [savingProfile, setSavingProfile] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null);
+  const [confirmingMessageId, setConfirmingMessageId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -107,28 +132,16 @@ export default function HomePage() {
     loadAnalytics(selectedDate);
     loadProfile();
 
-    setIsOffline(!navigator.onLine);
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event);
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt as EventListener);
-
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt as EventListener);
-    };
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     loadAnalytics(selectedDate);
@@ -159,6 +172,7 @@ export default function HomePage() {
   async function handleSend() {
     if (!text.trim() && stagedAttachments.length === 0) return;
     setSending(true);
+    setSubmissionFeedback("Registrando...");
     try {
       const response = await fetch("/api/chat/messages", {
         method: "POST",
@@ -169,23 +183,41 @@ export default function HomePage() {
         }),
       });
       const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Não consegui registrar agora.");
+      }
       if (payload.messages) {
         setMessages(payload.messages);
         setText("");
         setStagedAttachments([]);
+        setSubmissionFeedback(describeResult(payload.result) || "Registro atualizado.");
         await loadAnalytics(selectedDate);
       }
+    } catch (error: any) {
+      setSubmissionFeedback(error.message || "Não consegui registrar agora.");
     } finally {
       setSending(false);
     }
   }
 
   async function handleConfirmDraft(messageId: number) {
-    const response = await fetch(`/api/chat/messages/${messageId}/confirm`, { method: "POST" });
-    const payload = await response.json();
-    if (payload.messages) {
-      setMessages(payload.messages);
-      await loadAnalytics(selectedDate);
+    setConfirmingMessageId(messageId);
+    setSubmissionFeedback("Salvando rascunho...");
+    try {
+      const response = await fetch(`/api/chat/messages/${messageId}/confirm`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Não consegui salvar esse rascunho.");
+      }
+      if (payload.messages) {
+        setMessages(payload.messages);
+        setSubmissionFeedback("Rascunho salvo com sucesso.");
+        await loadAnalytics(selectedDate);
+      }
+    } catch (error: any) {
+      setSubmissionFeedback(error.message || "Não consegui salvar esse rascunho.");
+    } finally {
+      setConfirmingMessageId(null);
     }
   }
 
@@ -210,24 +242,12 @@ export default function HomePage() {
     }
   }
 
-  async function triggerInstall() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    setInstallPrompt(null);
-  }
-
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col bg-[#0b141a] text-white">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#111b21]/95 px-4 pb-3 pt-4 backdrop-blur">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">Diet Tracker PWA</p>
-            <h1 className="text-lg font-semibold">Matheusinho</h1>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-white/70">
-            {isOffline ? <WifiOff className="h-4 w-4 text-amber-300" /> : <Wifi className="h-4 w-4 text-emerald-300" />}
-            <span>{isOffline ? "Offline" : "Online"}</span>
-          </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">Diet Tracker</p>
+          <h1 className="text-lg font-semibold">Matheusinho</h1>
         </div>
       </header>
 
@@ -264,10 +284,11 @@ export default function HomePage() {
                           {message.message_type === "draft" && (
                             <button
                               onClick={() => handleConfirmDraft(message.id)}
-                              className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-400 px-3 py-1 font-medium text-[#0b141a]"
+                              disabled={confirmingMessageId === message.id}
+                              className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-400 px-3 py-1 font-medium text-[#0b141a] disabled:opacity-60"
                             >
                               <Save className="h-3.5 w-3.5" />
-                              Salvar esse rascunho
+                              {confirmingMessageId === message.id ? "Salvando..." : "Salvar esse rascunho"}
                             </button>
                           )}
                         </div>
@@ -290,6 +311,12 @@ export default function HomePage() {
                     <img key={attachment.id} src={attachment.url} alt={attachment.original_name || "staged"} className="h-20 w-full rounded-xl object-cover" />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {submissionFeedback && (
+              <div className="mt-4 rounded-2xl bg-black/30 px-3 py-2 text-sm text-emerald-100">
+                {submissionFeedback}
               </div>
             )}
           </div>
@@ -383,20 +410,6 @@ export default function HomePage() {
               <div className="mt-3">
                 <ProfileNumber label="Retenção de imagens (dias)" value={preferences.imageRetentionDays} onChange={(value) => setPreferences((current) => ({ ...current, imageRetentionDays: value }))} />
               </div>
-            </section>
-
-            <section className="rounded-3xl bg-[#111b21] p-4">
-              <h2 className="mb-3 text-sm font-semibold text-white/85">PWA / dispositivo</h2>
-              <div className="space-y-2 text-sm text-white/70">
-                <p>Status de rede: {isOffline ? "Offline" : "Online"}</p>
-                <p>Instalado: {window.matchMedia?.('(display-mode: standalone)').matches ? 'Sim' : 'Não'}</p>
-                <p>Thread: única e contínua</p>
-              </div>
-              {installPrompt && (
-                <button onClick={triggerInstall} className="mt-3 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-[#0b141a]">
-                  Instalar app
-                </button>
-              )}
             </section>
 
             <button onClick={saveProfile} disabled={savingProfile} className="w-full rounded-full bg-emerald-400 px-4 py-3 font-semibold text-[#0b141a] disabled:opacity-60">
@@ -502,10 +515,4 @@ function ProfileNumber({ label, value, onChange }: { label: string; value: numbe
       />
     </label>
   );
-}
-
-function shiftDate(date: string, delta: number) {
-  const current = new Date(`${date}T12:00:00`);
-  current.setDate(current.getDate() + delta);
-  return current.toISOString().split("T")[0];
 }

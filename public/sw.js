@@ -1,5 +1,15 @@
-const CACHE = 'diet-tracker-shell-v1';
+const CACHE = 'diet-tracker-shell-v2';
 const ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/chat-bg.svg'];
+
+function shouldCacheRequest(method, url) {
+  if (method !== 'GET') return false;
+
+  const parsed = new URL(url);
+  if (parsed.origin !== self.location.origin) return false;
+  if (parsed.pathname.startsWith('/api/')) return false;
+
+  return true;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -12,7 +22,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  if (!shouldCacheRequest(event.request.method, event.request.url)) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
