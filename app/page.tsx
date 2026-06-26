@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, BarChart3, Camera, ChevronLeft, ChevronRight, Flame, MessageCircle, Save, Settings, Timer } from "lucide-react";
+import { Activity, BarChart3, Camera, ChevronLeft, ChevronRight, Flame, MessageCircle, Pencil, Save, Settings, Timer, Trash2, X } from "lucide-react";
 import dateUtils from "../lib/date.js";
 import tabUtils from "../lib/ui/tabs.js";
 import chatPresentation from "../lib/chat/presentation.js";
+import analyticsActions from "../lib/analytics/item-actions.js";
 
 type TabKey = "chat" | "analytics" | "profile";
 
@@ -51,6 +52,12 @@ const { describeResult, buildPendingMessages } = chatPresentation as {
   buildPendingMessages: (input: { text?: string; attachments?: ChatAttachment[] }) => { userMessage: ChatMessage; waitingMessage: ChatMessage };
 };
 
+const { getItemResource, buildEditPayload, buildDeleteCopy } = analyticsActions as {
+  getItemResource: (item: any) => { itemType: "meal" | "workout"; recordId: number; endpoint: string };
+  buildEditPayload: (item: any) => any;
+  buildDeleteCopy: (item: any) => string;
+};
+
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
   { key: "chat", label: "Chat", icon: MessageCircle },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
@@ -85,6 +92,10 @@ export default function HomePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null);
   const [confirmingMessageId, setConfirmingMessageId] = useState<number | null>(null);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [editingDraft, setEditingDraft] = useState<any | null>(null);
+  const [savingItem, setSavingItem] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState<string | number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -248,6 +259,70 @@ export default function HomePage() {
     }
   }
 
+  function openEditItem(item: any) {
+    setEditingItem(item);
+    setEditingDraft(buildEditPayload(item));
+  }
+
+  function closeEditItem() {
+    if (savingItem) return;
+    setEditingItem(null);
+    setEditingDraft(null);
+  }
+
+  async function handleSaveItem() {
+    if (!editingItem || !editingDraft) return;
+    const { endpoint, itemType } = getItemResource(editingItem);
+
+    setSavingItem(true);
+    setSubmissionFeedback(itemType === "workout" ? "Salvando treino..." : "Salvando refeição...");
+    try {
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingDraft),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Não consegui salvar essa edição.");
+      }
+      await loadAnalytics(selectedDate);
+      setSubmissionFeedback(itemType === "workout" ? "Treino atualizado." : "Refeição atualizada.");
+      setEditingItem(null);
+      setEditingDraft(null);
+    } catch (error: any) {
+      setSubmissionFeedback(error.message || "Não consegui salvar essa edição.");
+    } finally {
+      setSavingItem(false);
+    }
+  }
+
+  async function handleDeleteItem(item: any) {
+    const confirmed = window.confirm(buildDeleteCopy(item));
+    if (!confirmed) return;
+
+    const { endpoint, itemType } = getItemResource(item);
+    setDeletingItemId(item.id);
+    setSubmissionFeedback(itemType === "workout" ? "Apagando treino..." : "Apagando refeição...");
+    try {
+      const response = await fetch(endpoint, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Não consegui apagar esse registro.");
+      }
+      await loadAnalytics(selectedDate);
+      setSubmissionFeedback(itemType === "workout" ? "Treino apagado." : "Refeição apagada.");
+      if (editingItem?.id === item.id) {
+        setEditingItem(null);
+        setEditingDraft(null);
+      }
+    } catch (error: any) {
+      setSubmissionFeedback(error.message || "Não consegui apagar esse registro.");
+    } finally {
+      setDeletingItemId(null);
+    }
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col bg-[#0b141a] text-white">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#111b21]/95 px-4 pb-3 pt-4 backdrop-blur">
@@ -392,9 +467,37 @@ export default function HomePage() {
               <div className="space-y-2">
                 {analytics.items?.length ? analytics.items.map((item: any) => (
                   <div key={item.id} className="rounded-2xl bg-white/5 p-3 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span>{item.description}</span>
-                      <span className="text-white/60">{item.calories} kcal</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span>{item.description}</span>
+                          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
+                            {item.type === "workout" ? "Treino" : "Refeição"}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-white/55">
+                          {item.type === "workout"
+                            ? `${item.amount || 0} min • ${item.calories} kcal`
+                            : `${item.amount || 0}${item.unit || "g"} • ${item.calories} kcal`}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditItem(item)}
+                          className="rounded-full bg-white/10 p-2 text-white/70"
+                          aria-label={`Editar ${item.description}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item)}
+                          disabled={deletingItemId === item.id}
+                          className="rounded-full bg-white/10 p-2 text-red-300 disabled:opacity-60"
+                          aria-label={`Apagar ${item.description}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )) : <p className="text-sm text-white/50">Nada registrado nesse dia.</p>}
@@ -487,6 +590,79 @@ export default function HomePage() {
           })}
         </nav>
       </footer>
+
+      {editingItem && editingDraft && (
+        <div className="fixed inset-0 z-40 flex items-end bg-black/60 p-3">
+          <div className="w-full rounded-[28px] bg-[#111b21] p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-emerald-300/80">{editingItem.type === "workout" ? "Editar treino" : "Editar refeição"}</div>
+                <div className="text-lg font-semibold text-white">{editingItem.description}</div>
+              </div>
+              <button onClick={closeEditItem} disabled={savingItem} className="rounded-full bg-white/10 p-2 text-white/70">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-sm text-white/75">
+                <span className="mb-2 block">{editingItem.type === "workout" ? "Treino" : "Descrição"}</span>
+                <input
+                  value={editingItem.type === "workout" ? editingDraft.modality || "" : editingDraft.description || ""}
+                  onChange={(event) => setEditingDraft((current: any) => current ? {
+                    ...current,
+                    ...(editingItem.type === "workout" ? { modality: event.target.value } : { description: event.target.value }),
+                  } : current)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-white outline-none"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <ProfileNumber
+                  label={editingItem.type === "workout" ? "Duração (min)" : "Quantidade"}
+                  value={editingItem.type === "workout" ? Number(editingDraft.duration_min || 0) : Number(editingDraft.amount || 0)}
+                  onChange={(value) => setEditingDraft((current: any) => current ? {
+                    ...current,
+                    ...(editingItem.type === "workout" ? { duration_min: value } : { amount: value }),
+                  } : current)}
+                />
+                <ProfileNumber
+                  label="Calorias"
+                  value={Number(editingDraft.calories || 0)}
+                  onChange={(value) => setEditingDraft((current: any) => current ? { ...current, calories: value } : current)}
+                />
+              </div>
+
+              {editingItem.type !== "workout" && (
+                <>
+                  <label className="block text-sm text-white/75">
+                    <span className="mb-2 block">Unidade</span>
+                    <input
+                      value={editingDraft.unit || "g"}
+                      onChange={(event) => setEditingDraft((current: any) => current ? { ...current, unit: event.target.value } : current)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-white outline-none"
+                    />
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <ProfileNumber label="Proteína" value={Number(editingDraft.protein || 0)} onChange={(value) => setEditingDraft((current: any) => current ? { ...current, protein: value } : current)} />
+                    <ProfileNumber label="Carbo" value={Number(editingDraft.carbs || 0)} onChange={(value) => setEditingDraft((current: any) => current ? { ...current, carbs: value } : current)} />
+                    <ProfileNumber label="Gordura" value={Number(editingDraft.fat || 0)} onChange={(value) => setEditingDraft((current: any) => current ? { ...current, fat: value } : current)} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button onClick={closeEditItem} disabled={savingItem} className="rounded-full border border-white/10 px-4 py-3 font-medium text-white/80 disabled:opacity-60">
+                Cancelar
+              </button>
+              <button onClick={handleSaveItem} disabled={savingItem} className="rounded-full bg-emerald-400 px-4 py-3 font-semibold text-[#0b141a] disabled:opacity-60">
+                {savingItem ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
