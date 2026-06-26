@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 const {
+  normalizeUserInput,
   normalizeWithHeuristics,
   decidePersistenceMode,
 } = require('../../lib/food-ai/normalize.js');
@@ -27,6 +30,21 @@ test('normalizeWithHeuristics asks for clarification on ambiguous text-only meal
 
   assert.equal(result.action, 'clarify');
   assert.match(result.question, /refei/i);
+});
+
+test('normalizeUserInput calculates structured meal lines from saved favorites without AI', async () => {
+  const result = await normalizeUserInput({
+    text: 'Almoço:\n120g carne\n100g macaxeira\n100g feijão preto\n100g arroz de leite',
+    attachments: [],
+  });
+
+  assert.equal(result.action, 'log_meal');
+  assert.equal(result.source, 'favorites-heuristic');
+  assert.equal(result.description, 'Almoço');
+  assert.equal(result.meal_items.length, 4);
+  assert.equal(result.confidence >= 0.9, true);
+  assert.equal(result.calories > 500, true);
+  assert.equal(result.protein > 30, true);
 });
 
 test('decidePersistenceMode auto-saves high-confidence meal parses with macros', () => {
