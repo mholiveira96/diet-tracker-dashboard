@@ -6,6 +6,11 @@ import dateUtils from "../lib/date.js";
 import tabUtils from "../lib/ui/tabs.js";
 import chatPresentation from "../lib/chat/presentation.js";
 import analyticsActions from "../lib/analytics/item-actions.js";
+import analyticsPresentation from "../lib/analytics/presentation.js";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select } from "../components/ui/select";
 
 type TabKey = "chat" | "analytics" | "profile";
 
@@ -58,6 +63,12 @@ const { getItemResource, buildEditPayload, buildDeleteCopy } = analyticsActions 
   buildDeleteCopy: (item: any) => string;
 };
 
+const { formatLoggedAtForInput, formatTimelineTime, getHistoryCaloriesBar } = analyticsPresentation as {
+  formatLoggedAtForInput: (value?: string | null) => string;
+  formatTimelineTime: (value?: string) => string;
+  getHistoryCaloriesBar: (day: any, goalCalories: number) => { width: string; background: string; tone: string };
+};
+
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
   { key: "chat", label: "Chat", icon: MessageCircle },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
@@ -81,17 +92,6 @@ function formatDayLabel(day: string) {
     month: "2-digit",
     timeZone: "America/Sao_Paulo",
   }).format(new Date(`${day}T12:00:00-03:00`));
-}
-
-function formatTimeLabel(loggedAt?: string) {
-  if (!loggedAt) return "--:--";
-  const normalized = String(loggedAt).replace(" ", "T");
-  const suffix = normalized.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(normalized) ? "" : "-03:00";
-  return new Intl.DateTimeFormat("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date(`${normalized}${suffix}`));
 }
 
 export default function HomePage() {
@@ -489,17 +489,20 @@ export default function HomePage() {
                   <div className="rounded-3xl bg-[#111b21] p-4">
                     <h2 className="mb-3 text-sm font-semibold text-white/85">Últimos 7 dias</h2>
                     <div className="space-y-3">
-                      {analytics.history?.slice(0, 7).map((day) => (
-                        <div key={day.day}>
-                          <div className="mb-1 flex items-center justify-between text-xs text-white/65">
-                            <span>{formatDayLabel(day.day)}</span>
-                            <span>{day.net_kcal} kcal líquido</span>
+                      {analytics.history?.slice(0, 7).map((day) => {
+                        const caloriesBar = getHistoryCaloriesBar(day, analytics.goals?.calories || 1);
+                        return (
+                          <div key={day.day}>
+                            <div className="mb-1 flex items-center justify-between text-xs text-white/65">
+                              <span>{formatDayLabel(day.day)}</span>
+                              <span>{day.kcal} / {analytics.goals?.calories || 0} kcal</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-white/10">
+                              <div className="h-2 rounded-full transition-all" style={{ width: caloriesBar.width, background: caloriesBar.background }} />
+                            </div>
                           </div>
-                          <div className="h-2 rounded-full bg-white/10">
-                            <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${Math.min(100, Math.max(8, (Number(day.protein || 0) / (analytics.goals?.protein || 200)) * 100))}%` }} />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -516,6 +519,9 @@ export default function HomePage() {
                             <span>{item.description}</span>
                             <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
                               {item.type === "workout" ? "Treino" : "Refeição"}
+                            </span>
+                            <span className="rounded-full bg-black/20 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white/60">
+                              {formatTimelineTime(item.logged_at)}
                             </span>
                           </div>
                           <div className="mt-1 text-xs text-white/55">
@@ -562,7 +568,7 @@ export default function HomePage() {
                         <tbody>
                           {analytics.items.map((item: any) => (
                             <tr key={`desktop-${item.id}`} className="border-t border-white/10 align-top text-white/85">
-                              <td className="px-4 py-3 text-white/60">{formatTimeLabel(item.logged_at)}</td>
+                              <td className="px-4 py-3 text-white/60">{formatTimelineTime(item.logged_at)}</td>
                               <td className="px-4 py-3">{item.type === "workout" ? "Treino" : "Refeição"}</td>
                               <td className="px-4 py-3 font-medium">{item.description}</td>
                               <td className="px-4 py-3 text-white/60">
@@ -617,23 +623,22 @@ export default function HomePage() {
 
             <section className="rounded-3xl bg-[#111b21] p-4">
               <h2 className="mb-3 text-sm font-semibold text-white/85">Comportamento do parser</h2>
-              <select
+              <Select
                 value={preferences.parserMode}
                 onChange={(event) => setPreferences((current) => ({ ...current, parserMode: event.target.value }))}
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-sm outline-none"
               >
                 <option value="conservative">Conservative</option>
                 <option value="balanced">Balanced</option>
                 <option value="aggressive">Aggressive</option>
-              </select>
+              </Select>
               <div className="mt-3">
                 <ProfileNumber label="Retenção de imagens (dias)" value={preferences.imageRetentionDays} onChange={(value) => setPreferences((current) => ({ ...current, imageRetentionDays: value }))} />
               </div>
             </section>
 
-            <button onClick={saveProfile} disabled={savingProfile} className="w-full rounded-full bg-emerald-400 px-4 py-3 font-semibold text-[#0b141a] disabled:opacity-60">
+            <Button onClick={saveProfile} disabled={savingProfile} className="w-full">
               {savingProfile ? "Salvando..." : "Salvar perfil"}
-            </button>
+            </Button>
           </div>
         )}
       </section>
@@ -698,23 +703,22 @@ export default function HomePage() {
                 <div className="text-xs uppercase tracking-wide text-emerald-300/80">{editingItem.type === "workout" ? "Editar treino" : "Editar refeição"}</div>
                 <div className="text-lg font-semibold text-white">{editingItem.description}</div>
               </div>
-              <button onClick={closeEditItem} disabled={savingItem} className="rounded-full bg-white/10 p-2 text-white/70">
+              <Button onClick={closeEditItem} disabled={savingItem} variant="secondary" className="h-10 w-10 rounded-full p-0 text-white/70">
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-3">
-              <label className="block text-sm text-white/75">
+              <Label>
                 <span className="mb-2 block">{editingItem.type === "workout" ? "Treino" : "Descrição"}</span>
-                <input
+                <Input
                   value={editingItem.type === "workout" ? editingDraft.modality || "" : editingDraft.description || ""}
                   onChange={(event) => setEditingDraft((current: any) => current ? {
                     ...current,
                     ...(editingItem.type === "workout" ? { modality: event.target.value } : { description: event.target.value }),
                   } : current)}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-white outline-none"
                 />
-              </label>
+              </Label>
 
               <div className="grid grid-cols-2 gap-3">
                 <ProfileNumber
@@ -732,16 +736,24 @@ export default function HomePage() {
                 />
               </div>
 
+              <Label>
+                <span className="mb-2 block">Horário</span>
+                <Input
+                  type="datetime-local"
+                  value={formatLoggedAtForInput(editingDraft.logged_at)}
+                  onChange={(event) => setEditingDraft((current: any) => current ? { ...current, logged_at: event.target.value } : current)}
+                />
+              </Label>
+
               {editingItem.type !== "workout" && (
                 <>
-                  <label className="block text-sm text-white/75">
+                  <Label>
                     <span className="mb-2 block">Unidade</span>
-                    <input
+                    <Input
                       value={editingDraft.unit || "g"}
                       onChange={(event) => setEditingDraft((current: any) => current ? { ...current, unit: event.target.value } : current)}
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-white outline-none"
                     />
-                  </label>
+                  </Label>
                   <div className="grid grid-cols-3 gap-3">
                     <ProfileNumber label="Proteína" value={Number(editingDraft.protein || 0)} onChange={(value) => setEditingDraft((current: any) => current ? { ...current, protein: value } : current)} />
                     <ProfileNumber label="Carbo" value={Number(editingDraft.carbs || 0)} onChange={(value) => setEditingDraft((current: any) => current ? { ...current, carbs: value } : current)} />
@@ -752,12 +764,12 @@ export default function HomePage() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              <button onClick={closeEditItem} disabled={savingItem} className="rounded-full border border-white/10 px-4 py-3 font-medium text-white/80 disabled:opacity-60">
+              <Button onClick={closeEditItem} disabled={savingItem} variant="outline" className="w-full">
                 Cancelar
-              </button>
-              <button onClick={handleSaveItem} disabled={savingItem} className="rounded-full bg-emerald-400 px-4 py-3 font-semibold text-[#0b141a] disabled:opacity-60">
+              </Button>
+              <Button onClick={handleSaveItem} disabled={savingItem} className="w-full">
                 {savingItem ? "Salvando..." : "Salvar"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -799,14 +811,13 @@ function MacroBar({ label, value, goal, color }: { label: string; value: number;
 
 function ProfileNumber({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   return (
-    <label className="block text-sm text-white/75">
+    <Label>
       <span className="mb-2 block">{label}</span>
-      <input
+      <Input
         type="number"
         value={value}
         onChange={(event) => onChange(Number(event.target.value || 0))}
-        className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-white outline-none"
       />
-    </label>
+    </Label>
   );
 }

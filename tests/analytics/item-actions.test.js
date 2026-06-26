@@ -46,7 +46,7 @@ test('buildEditPayload keeps only editable meal fields', () => {
       protein: 45,
       carbs: 62,
       fat: 18,
-      logged_at: '2026-06-26 12:30:00',
+      logged_at: '2026-06-26T12:30',
     }
   );
 });
@@ -66,7 +66,7 @@ test('buildEditPayload maps workout timeline items to workout api shape', () => 
       modality: 'Corrida',
       duration_min: 32,
       calories: 280,
-      logged_at: '2026-06-26 18:40:00',
+      logged_at: '2026-06-26T18:40',
     }
   );
 });
