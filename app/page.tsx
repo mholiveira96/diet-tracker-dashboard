@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, BarChart3, Camera, ChevronLeft, ChevronRight, Flame, MessageCircle, Save, Settings, Timer } from "lucide-react";
 import dateUtils from "../lib/date.js";
 import tabUtils from "../lib/ui/tabs.js";
+import chatPresentation from "../lib/chat/presentation.js";
 
 type TabKey = "chat" | "analytics" | "profile";
 
@@ -15,7 +16,7 @@ type ChatAttachment = {
 };
 
 type ChatMessage = {
-  id: number;
+  id: number | string;
   role: "user" | "assistant";
   message_type: string;
   text: string;
@@ -45,27 +46,16 @@ const { TAB_STORAGE_KEY, getStoredTab } = tabUtils as {
   getStoredTab: (storage: Storage | null | undefined) => TabKey;
 };
 
+const { describeResult, buildPendingMessages } = chatPresentation as {
+  describeResult: (result: any) => string | null;
+  buildPendingMessages: (input: { text?: string; attachments?: ChatAttachment[] }) => { userMessage: ChatMessage; waitingMessage: ChatMessage };
+};
+
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
   { key: "chat", label: "Chat", icon: MessageCircle },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
   { key: "profile", label: "Profile", icon: Settings },
 ];
-
-function describeResult(result: any) {
-  if (!result?.decision?.mode) return null;
-
-  if (result.decision.mode === "auto_save") {
-    return result.normalized?.action === "log_workout"
-      ? "Treino registrado com sucesso."
-      : "Refeição registrada com sucesso.";
-  }
-
-  if (result.decision.mode === "draft") {
-    return "Confere o rascunho e toca em salvar para registrar.";
-  }
-
-  return "Preciso de mais detalhes antes de registrar isso.";
-}
 
 function formatConfidence(value?: number | null) {
   if (typeof value !== "number") return null;
@@ -83,6 +73,7 @@ export default function HomePage() {
     return getStoredTab(window.sessionStorage);
   });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -101,6 +92,8 @@ export default function HomePage() {
     if (!analytics) return 0;
     return Number(analytics.summary?.kcal || 0) - Number(analytics.workouts?.total || 0);
   }, [analytics]);
+
+  const displayedMessages = useMemo(() => [...messages, ...pendingMessages], [messages, pendingMessages]);
 
   async function loadThread() {
     const response = await fetch("/api/chat/thread", { cache: "no-store" });
@@ -171,15 +164,26 @@ export default function HomePage() {
 
   async function handleSend() {
     if (!text.trim() && stagedAttachments.length === 0) return;
+
+    const textToSend = text;
+    const attachmentsToSend = [...stagedAttachments];
+    const optimistic = buildPendingMessages({
+      text: textToSend,
+      attachments: attachmentsToSend,
+    });
+
+    setPendingMessages([optimistic.userMessage, optimistic.waitingMessage]);
+    setText("");
+    setStagedAttachments([]);
     setSending(true);
-    setSubmissionFeedback("Registrando...");
+    setSubmissionFeedback("Mensagem enviada. Estou analisando...");
     try {
       const response = await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text,
-          attachmentIds: stagedAttachments.map((attachment) => attachment.id),
+          text: textToSend,
+          attachmentIds: attachmentsToSend.map((attachment) => attachment.id),
         }),
       });
       const payload = await response.json();
@@ -188,12 +192,14 @@ export default function HomePage() {
       }
       if (payload.messages) {
         setMessages(payload.messages);
-        setText("");
-        setStagedAttachments([]);
+        setPendingMessages([]);
         setSubmissionFeedback(describeResult(payload.result) || "Registro atualizado.");
         await loadAnalytics(selectedDate);
       }
     } catch (error: any) {
+      setPendingMessages([]);
+      setText(textToSend);
+      setStagedAttachments(attachmentsToSend);
       setSubmissionFeedback(error.message || "Não consegui registrar agora.");
     } finally {
       setSending(false);
@@ -255,12 +261,14 @@ export default function HomePage() {
         {activeTab === "chat" && (
           <div className="flex min-h-full flex-col bg-[url('/chat-bg.svg')] bg-cover bg-center px-3 py-4">
             <div className="space-y-3">
-              {messages.map((message) => {
+              {displayedMessages.map((message) => {
                 const isUser = message.role === "user";
                 const normalized = message.metadata?.normalized;
+                const isWaiting = message.message_type === "pending";
+                const isOptimistic = Boolean(message.metadata?.optimistic);
                 return (
-                  <div key={message.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[88%] rounded-2xl px-3 py-2 shadow ${isUser ? "bg-[#005c4b]" : "bg-[#202c33]"}`}>
+                  <div key={String(message.id)} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[88%] rounded-2xl px-3 py-2 shadow ${isUser ? "bg-[#005c4b]" : "bg-[#202c33]"} ${isOptimistic ? "opacity-90" : ""}`}>
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mb-2 grid grid-cols-2 gap-2">
                           {message.attachments.map((attachment) => (
@@ -268,7 +276,18 @@ export default function HomePage() {
                           ))}
                         </div>
                       )}
-                      <p className="whitespace-pre-wrap text-sm leading-6 text-white">{message.text}</p>
+                      {isWaiting ? (
+                        <div className="flex items-center gap-2 text-sm text-white/90">
+                          <span>{message.text}</span>
+                          <span className="inline-flex gap-1">
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-300 [animation-delay:-0.2s]" />
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-300 [animation-delay:-0.1s]" />
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-300" />
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-white">{message.text}</p>
+                      )}
                       {!isUser && normalized && (
                         <div className="mt-2 rounded-xl bg-black/20 p-2 text-xs text-white/80">
                           <div className="flex items-center justify-between gap-2">
@@ -283,12 +302,12 @@ export default function HomePage() {
                           {typeof normalized.fat === "number" && <p>🥑 {normalized.fat}g gordura</p>}
                           {message.message_type === "draft" && (
                             <button
-                              onClick={() => handleConfirmDraft(message.id)}
-                              disabled={confirmingMessageId === message.id}
+                              onClick={() => handleConfirmDraft(Number(message.id))}
+                              disabled={confirmingMessageId === Number(message.id)}
                               className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-400 px-3 py-1 font-medium text-[#0b141a] disabled:opacity-60"
                             >
                               <Save className="h-3.5 w-3.5" />
-                              {confirmingMessageId === message.id ? "Salvando..." : "Salvar esse rascunho"}
+                              {confirmingMessageId === Number(message.id) ? "Salvando..." : "Salvar esse rascunho"}
                             </button>
                           )}
                         </div>
@@ -445,7 +464,7 @@ export default function HomePage() {
                 className="max-h-28 flex-1 resize-none bg-transparent px-1 py-3 text-sm outline-none placeholder:text-white/35"
               />
               <button onClick={handleSend} disabled={sending || uploading} className="rounded-full bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#0b141a] disabled:opacity-60">
-                {sending ? "..." : "Enviar"}
+                {sending ? "Enviando" : "Enviar"}
               </button>
             </div>
           </div>
