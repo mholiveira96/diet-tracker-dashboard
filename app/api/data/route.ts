@@ -1,4 +1,6 @@
 import { createClient } from "@libsql/client/web";
+import { buildDenseHistory } from "../../../lib/analytics/history.js";
+import { getTodayInTimezone } from "../../../lib/date.js";
 
 export const dynamic = "force-dynamic";
 
@@ -104,12 +106,16 @@ export async function GET(request: Request) {
     });
 
     const workoutSummary = workoutSummaryRes.rows[0] || { workout_kcal: 0, duration_min: 0, workout_count: 0 };
+    const historyEndDate = targetDate === "now"
+      ? getTodayInTimezone(new Date(), "America/Sao_Paulo")
+      : targetDate;
+    const denseHistory = buildDenseHistory(historyRes.rows as any, { endDate: historyEndDate, days: 30 });
 
     const responseData = {
       summary: summaryRes.rows[0],
       goals: goalsRes.rows[0] || { calories: 2200, protein: 180, carbs: 180, fat: 84 },
       items: combinedItems,
-      history: historyRes.rows,
+      history: denseHistory,
       activity: activityRes.rows,
       workouts: {
         total: workoutSummary.workout_kcal || 0,

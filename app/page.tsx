@@ -74,6 +74,26 @@ function macroProgress(value: number, goal: number) {
   return Math.max(0, Math.min(100, Math.round((value / goal) * 100)));
 }
 
+function formatDayLabel(day: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(`${day}T12:00:00-03:00`));
+}
+
+function formatTimeLabel(loggedAt?: string) {
+  if (!loggedAt) return "--:--";
+  const normalized = String(loggedAt).replace(" ", "T");
+  const suffix = normalized.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(normalized) ? "" : "-03:00";
+  return new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(`${normalized}${suffix}`));
+}
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
     if (typeof window === "undefined") return "chat";
@@ -324,17 +344,35 @@ export default function HomePage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col bg-[#0b141a] text-white">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#111b21]/95 px-4 pb-3 pt-4 backdrop-blur">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">Diet Tracker</p>
-          <h1 className="text-lg font-semibold">Matheusinho</h1>
+    <main className="min-h-screen bg-[#0b141a] text-white">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#111b21]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 pb-3 pt-4 lg:px-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">Diet Tracker</p>
+            <h1 className="text-lg font-semibold">Matheusinho</h1>
+          </div>
+          <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/5 p-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.key;
+              return (
+                <button
+                  key={`header-${tab.key}`}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm ${active ? "bg-white/10 text-emerald-300" : "text-white/55"}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
 
-      <section className="flex-1 overflow-y-auto pb-24">
+      <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
         {activeTab === "chat" && (
-          <div className="flex min-h-full flex-col bg-[url('/chat-bg.svg')] bg-cover bg-center px-3 py-4">
+          <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-[url('/chat-bg.svg')] bg-cover bg-center px-3 py-4 lg:rounded-[32px]">
             <div className="space-y-3">
               {displayedMessages.map((message) => {
                 const isUser = message.role === "user";
@@ -417,8 +455,8 @@ export default function HomePage() {
         )}
 
         {activeTab === "analytics" && analytics && (
-          <div className="space-y-4 px-4 py-4">
-            <div className="flex items-center justify-between rounded-2xl bg-[#111b21] p-3">
+          <div className="w-full space-y-4 px-4 py-4 lg:px-0">
+            <div className="flex items-center justify-between rounded-2xl bg-[#111b21] p-3 lg:px-5">
               <button onClick={() => setSelectedDate((value) => shiftDate(value, -1))} className="rounded-full bg-white/5 p-2">
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -431,83 +469,142 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <MetricCard icon={Flame} label="Consumido" value={`${analytics.summary?.kcal || 0} kcal`} tone="emerald" />
-              <MetricCard icon={Activity} label="Líquido" value={`${netCalories} kcal`} tone="blue" />
-              <MetricCard icon={Timer} label="Treino" value={`${analytics.workouts?.total || 0} kcal`} tone="amber" />
-              <MetricCard icon={BarChart3} label="Sessões" value={`${analytics.workouts?.count || 0}`} tone="purple" />
-            </div>
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.95fr)]">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <MetricCard icon={Flame} label="Consumido" value={`${analytics.summary?.kcal || 0} kcal`} tone="emerald" />
+                  <MetricCard icon={Activity} label="Líquido" value={`${netCalories} kcal`} tone="blue" />
+                  <MetricCard icon={Timer} label="Treino" value={`${analytics.workouts?.total || 0} kcal`} tone="amber" />
+                  <MetricCard icon={BarChart3} label="Sessões" value={`${analytics.workouts?.count || 0}`} tone="purple" />
+                </div>
 
-            <div className="rounded-3xl bg-[#111b21] p-4">
-              <h2 className="mb-3 text-sm font-semibold text-white/85">Macros</h2>
-              <MacroBar label="Proteína" value={analytics.summary?.protein || 0} goal={analytics.goals?.protein || 1} color="bg-emerald-400" />
-              <MacroBar label="Carbo" value={analytics.summary?.carbs || 0} goal={analytics.goals?.carbs || 1} color="bg-sky-400" />
-              <MacroBar label="Gordura" value={analytics.summary?.fat || 0} goal={analytics.goals?.fat || 1} color="bg-amber-400" />
-            </div>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)]">
+                  <div className="rounded-3xl bg-[#111b21] p-4">
+                    <h2 className="mb-3 text-sm font-semibold text-white/85">Macros</h2>
+                    <MacroBar label="Proteína" value={analytics.summary?.protein || 0} goal={analytics.goals?.protein || 1} color="bg-emerald-400" />
+                    <MacroBar label="Carbo" value={analytics.summary?.carbs || 0} goal={analytics.goals?.carbs || 1} color="bg-sky-400" />
+                    <MacroBar label="Gordura" value={analytics.summary?.fat || 0} goal={analytics.goals?.fat || 1} color="bg-amber-400" />
+                  </div>
 
-            <div className="rounded-3xl bg-[#111b21] p-4">
-              <h2 className="mb-3 text-sm font-semibold text-white/85">Últimos 7 dias</h2>
-              <div className="space-y-3">
-                {analytics.history?.slice(0, 7).map((day) => (
-                  <div key={day.day}>
-                    <div className="mb-1 flex items-center justify-between text-xs text-white/65">
-                      <span>{day.day}</span>
-                      <span>{day.net_kcal} kcal líquido</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-white/10">
-                      <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${Math.min(100, Math.max(8, (Number(day.protein || 0) / (analytics.goals?.protein || 200)) * 100))}%` }} />
+                  <div className="rounded-3xl bg-[#111b21] p-4">
+                    <h2 className="mb-3 text-sm font-semibold text-white/85">Últimos 7 dias</h2>
+                    <div className="space-y-3">
+                      {analytics.history?.slice(0, 7).map((day) => (
+                        <div key={day.day}>
+                          <div className="mb-1 flex items-center justify-between text-xs text-white/65">
+                            <span>{formatDayLabel(day.day)}</span>
+                            <span>{day.net_kcal} kcal líquido</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-white/10">
+                            <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${Math.min(100, Math.max(8, (Number(day.protein || 0) / (analytics.goals?.protein || 200)) * 100))}%` }} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
 
-            <div className="rounded-3xl bg-[#111b21] p-4">
-              <h2 className="mb-3 text-sm font-semibold text-white/85">Timeline do dia</h2>
-              <div className="space-y-2">
-                {analytics.items?.length ? analytics.items.map((item: any) => (
-                  <div key={item.id} className="rounded-2xl bg-white/5 p-3 text-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
+              <div className="rounded-3xl bg-[#111b21] p-4">
+                <h2 className="mb-3 text-sm font-semibold text-white/85">Timeline do dia</h2>
+                <div className="space-y-2 lg:hidden">
+                  {analytics.items?.length ? analytics.items.map((item: any) => (
+                    <div key={item.id} className="rounded-2xl bg-white/5 p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span>{item.description}</span>
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
+                              {item.type === "workout" ? "Treino" : "Refeição"}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-white/55">
+                            {item.type === "workout"
+                              ? `${item.amount || 0} min • ${item.calories} kcal`
+                              : `${item.amount || 0}${item.unit || "g"} • ${item.calories} kcal`}
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2">
-                          <span>{item.description}</span>
-                          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
-                            {item.type === "workout" ? "Treino" : "Refeição"}
-                          </span>
+                          <button
+                            onClick={() => openEditItem(item)}
+                            className="rounded-full bg-white/10 p-2 text-white/70"
+                            aria-label={`Editar ${item.description}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item)}
+                            disabled={deletingItemId === item.id}
+                            className="rounded-full bg-white/10 p-2 text-red-300 disabled:opacity-60"
+                            aria-label={`Apagar ${item.description}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
-                        <div className="mt-1 text-xs text-white/55">
-                          {item.type === "workout"
-                            ? `${item.amount || 0} min • ${item.calories} kcal`
-                            : `${item.amount || 0}${item.unit || "g"} • ${item.calories} kcal`}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditItem(item)}
-                          className="rounded-full bg-white/10 p-2 text-white/70"
-                          aria-label={`Editar ${item.description}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItem(item)}
-                          disabled={deletingItemId === item.id}
-                          className="rounded-full bg-white/10 p-2 text-red-300 disabled:opacity-60"
-                          aria-label={`Apagar ${item.description}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
                       </div>
                     </div>
-                  </div>
-                )) : <p className="text-sm text-white/50">Nada registrado nesse dia.</p>}
+                  )) : <p className="text-sm text-white/50">Nada registrado nesse dia.</p>}
+                </div>
+
+                <div className="hidden lg:block">
+                  {analytics.items?.length ? (
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-white/50">
+                          <tr>
+                            <th className="px-4 py-3 font-medium">Hora</th>
+                            <th className="px-4 py-3 font-medium">Tipo</th>
+                            <th className="px-4 py-3 font-medium">Descrição</th>
+                            <th className="px-4 py-3 font-medium">Detalhes</th>
+                            <th className="px-4 py-3 font-medium text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics.items.map((item: any) => (
+                            <tr key={`desktop-${item.id}`} className="border-t border-white/10 align-top text-white/85">
+                              <td className="px-4 py-3 text-white/60">{formatTimeLabel(item.logged_at)}</td>
+                              <td className="px-4 py-3">{item.type === "workout" ? "Treino" : "Refeição"}</td>
+                              <td className="px-4 py-3 font-medium">{item.description}</td>
+                              <td className="px-4 py-3 text-white/60">
+                                {item.type === "workout"
+                                  ? `${item.amount || 0} min • ${item.calories} kcal`
+                                  : `${item.amount || 0}${item.unit || "g"} • ${item.calories} kcal • P ${item.protein || 0}g • C ${item.carbs || 0}g • G ${item.fat || 0}g`}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => openEditItem(item)}
+                                    className="rounded-full bg-white/10 p-2 text-white/70"
+                                    aria-label={`Editar ${item.description}`}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteItem(item)}
+                                    disabled={deletingItemId === item.id}
+                                    className="rounded-full bg-white/10 p-2 text-red-300 disabled:opacity-60"
+                                    aria-label={`Apagar ${item.description}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white/50">Nada registrado nesse dia.</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === "profile" && (
-          <div className="space-y-4 px-4 py-4">
+          <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4 lg:px-0">
             <section className="rounded-3xl bg-[#111b21] p-4">
               <h2 className="mb-3 text-sm font-semibold text-white/85">Metas diárias</h2>
               <div className="grid grid-cols-2 gap-3">
@@ -541,59 +638,61 @@ export default function HomePage() {
         )}
       </section>
 
-      <footer className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-white/10 bg-[#111b21] pb-[max(env(safe-area-inset-bottom),12px)] pt-2">
-        {activeTab === "chat" && (
-          <div className="px-3 pb-3">
-            <div className="flex items-end gap-2 rounded-3xl bg-[#202c33] p-2">
-              <button onClick={() => fileInputRef.current?.click()} className="rounded-full bg-white/5 p-3 text-white/75">
-                <Camera className="h-5 w-5" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) handleUpload(file);
-                  event.target.value = "";
-                }}
-              />
-              <textarea
-                rows={1}
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                placeholder={uploading ? "Enviando imagem..." : "Descreva sua refeição ou treino"}
-                className="max-h-28 flex-1 resize-none bg-transparent px-1 py-3 text-sm outline-none placeholder:text-white/35"
-              />
-              <button onClick={handleSend} disabled={sending || uploading} className="rounded-full bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#0b141a] disabled:opacity-60">
-                {sending ? "Enviando" : "Enviar"}
-              </button>
+      <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#111b21] pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
+        <div className="mx-auto w-full max-w-6xl lg:px-6">
+          {activeTab === "chat" && (
+            <div className="mx-auto max-w-md px-3 pb-3 lg:px-0 lg:pb-0">
+              <div className="flex items-end gap-2 rounded-3xl bg-[#202c33] p-2">
+                <button onClick={() => fileInputRef.current?.click()} className="rounded-full bg-white/5 p-3 text-white/75">
+                  <Camera className="h-5 w-5" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) handleUpload(file);
+                    event.target.value = "";
+                  }}
+                />
+                <textarea
+                  rows={1}
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder={uploading ? "Enviando imagem..." : "Descreva sua refeição ou treino"}
+                  className="max-h-28 flex-1 resize-none bg-transparent px-1 py-3 text-sm outline-none placeholder:text-white/35"
+                />
+                <button onClick={handleSend} disabled={sending || uploading} className="rounded-full bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#0b141a] disabled:opacity-60">
+                  {sending ? "Enviando" : "Enviar"}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <nav className="grid grid-cols-3 gap-1 px-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex flex-col items-center justify-center rounded-2xl px-3 py-2 text-xs ${active ? "bg-white/10 text-emerald-300" : "text-white/55"}`}
-              >
-                <Icon className="mb-1 h-4 w-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
+          <nav className="grid grid-cols-3 gap-1 px-2 lg:hidden">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex flex-col items-center justify-center rounded-2xl px-3 py-2 text-xs ${active ? "bg-white/10 text-emerald-300" : "text-white/55"}`}
+                >
+                  <Icon className="mb-1 h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </footer>
 
       {editingItem && editingDraft && (
-        <div className="fixed inset-0 z-40 flex items-end bg-black/60 p-3">
-          <div className="w-full rounded-[28px] bg-[#111b21] p-4 shadow-2xl">
+        <div className="fixed inset-0 z-40 flex items-end bg-black/60 p-3 lg:items-center lg:justify-center">
+          <div className="w-full rounded-[28px] bg-[#111b21] p-4 shadow-2xl lg:max-w-2xl lg:p-6">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase tracking-wide text-emerald-300/80">{editingItem.type === "workout" ? "Editar treino" : "Editar refeição"}</div>
