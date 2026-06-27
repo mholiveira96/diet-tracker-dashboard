@@ -10,29 +10,29 @@ const {
 test('describeResult uses assertive success copy', () => {
   assert.equal(
     describeResult({ decision: { mode: 'auto_save' }, normalized: { action: 'log_meal' } }),
-    'Refeição registrada. Vou atualizar seus números agora.'
+    'Refeição registrada. Números atualizados.'
   );
 
   assert.equal(
     describeResult({ decision: { mode: 'auto_save' }, normalized: { action: 'log_workout' } }),
-    'Treino registrado. Vou atualizar seus números agora.'
+    'Treino registrado. Números atualizados.'
   );
 });
 
 test('buildAssistantReplyText uses assertive draft and clarify copy', () => {
   assert.equal(
     buildAssistantReplyText({ action: 'log_meal', description: 'Almoço completo' }, 'draft'),
-    'Encontrei esta refeição: Almoço completo. Se estiver certo, salva abaixo.'
+    'Refeição pronta: Almoço completo. Salve para registrar.'
   );
 
   assert.equal(
     buildAssistantReplyText({ modality: 'Corrida 5km' }, 'draft'),
-    'Encontrei este treino: Corrida 5km. Se estiver certo, salva abaixo.'
+    'Treino pronto: Corrida 5km. Salve para registrar.'
   );
 
   assert.equal(
     buildAssistantReplyText({ question: 'Quantos gramas?' }, 'clarify'),
-    'Quase certo. Me confirma só isto: Quantos gramas?'
+    'Responda isto para eu registrar: Quantos gramas?'
   );
 });
 
@@ -49,6 +49,6 @@ test('buildPendingMessages creates instant outgoing and waiting bubbles', () => 
 
   assert.equal(result.waitingMessage.role, 'assistant');
   assert.equal(result.waitingMessage.message_type, 'pending');
-  assert.equal(result.waitingMessage.text, 'Analisando e registrando...');
+  assert.equal(result.waitingMessage.text, 'Registrando agora...');
   assert.equal(result.waitingMessage.status, 'processando');
 });

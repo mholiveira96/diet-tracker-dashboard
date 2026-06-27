@@ -61,12 +61,40 @@ test('buildEditPayload maps workout timeline items to workout api shape', () => 
       calories: 280,
       logged_at: '2026-06-26 18:40:00',
       unit: 'min',
+      workout_type: 'cardio',
+      intensity: 'high',
+      notes: 'Tiros de 400m',
     }),
     {
       modality: 'Corrida',
       duration_min: 32,
       calories: 280,
+      workout_type: 'cardio',
+      intensity: 'high',
+      notes: 'Tiros de 400m',
       logged_at: '2026-06-26T18:40',
+    }
+  );
+});
+
+test('buildEditPayload falls back to safe workout defaults', () => {
+  assert.deepEqual(
+    buildEditPayload({
+      id: 'w-18',
+      type: 'workout',
+      description: 'Mobilidade',
+      amount: 18,
+      calories: 90,
+      logged_at: '2026-06-26 07:15:00',
+    }),
+    {
+      modality: 'Mobilidade',
+      duration_min: 18,
+      calories: 90,
+      workout_type: 'other',
+      intensity: 'moderate',
+      notes: '',
+      logged_at: '2026-06-26T07:15',
     }
   );
 });

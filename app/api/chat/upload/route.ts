@@ -1,6 +1,10 @@
 import { ensureRollingThread, saveAttachment } from '../../../../lib/chat/store.js';
+import { errorToResponse } from '../../../../lib/http.js';
+import { ValidationError } from '../../../../lib/validation.js';
 
 export const dynamic = 'force-dynamic';
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
@@ -8,7 +12,15 @@ export async function POST(request: Request) {
     const file = formData.get('file');
 
     if (!(file instanceof File)) {
-      return Response.json({ error: 'Missing file upload' }, { status: 400 });
+      throw new ValidationError('Imagem obrigatória para upload.', 400, { field: 'file' });
+    }
+
+    if (!file.type.startsWith('image/')) {
+      throw new ValidationError('Só aceito imagens nesse upload.', 400, { field: 'file' });
+    }
+
+    if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+      throw new ValidationError('A imagem precisa ter até 10 MB.', 400, { field: 'file', maxBytes: MAX_UPLOAD_BYTES });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -22,6 +34,6 @@ export async function POST(request: Request) {
 
     return Response.json({ thread, attachment });
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return errorToResponse(error);
   }
 }

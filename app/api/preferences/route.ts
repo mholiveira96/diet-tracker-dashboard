@@ -1,28 +1,35 @@
-import { getSetting, setSetting } from '../../../lib/chat/store.js';
+import { getPreferences, mergePreferencesUpdate, savePreferences } from '../../../lib/repositories/preferences.js';
+import { errorToResponse } from '../../../lib/http.js';
+import { requireEnum, requireNumber } from '../../../lib/validation.js';
 
 export const dynamic = 'force-dynamic';
 
+const PARSER_MODES = ['conservative', 'balanced', 'aggressive'] as const;
+
 export async function GET() {
   try {
-    const parserMode = (await getSetting('parser_mode')) || 'balanced';
-    const imageRetentionDays = Number((await getSetting('image_retention_days')) || '180');
-    return Response.json({ parserMode, imageRetentionDays });
+    return Response.json(await getPreferences());
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return errorToResponse(error);
   }
 }
 
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    if (body.parserMode) {
-      await setSetting('parser_mode', body.parserMode);
-    }
-    if (body.imageRetentionDays) {
-      await setSetting('image_retention_days', body.imageRetentionDays);
-    }
-    return Response.json({ success: true });
+    const current = await getPreferences();
+    const nextPreferences = mergePreferencesUpdate(current, {
+      parserMode:
+        body.parserMode === undefined ? undefined : requireEnum(body.parserMode, 'parserMode', [...PARSER_MODES]),
+      imageRetentionDays:
+        body.imageRetentionDays === undefined
+          ? undefined
+          : requireNumber(body.imageRetentionDays, 'imageRetentionDays', { min: 1, max: 3650, integer: true }),
+    });
+    const preferences = await savePreferences(nextPreferences);
+
+    return Response.json({ success: true, preferences });
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return errorToResponse(error);
   }
 }

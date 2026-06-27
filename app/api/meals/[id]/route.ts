@@ -1,11 +1,13 @@
-import { createClient } from "@libsql/client/web";
+import { deleteMealById, updateMealById } from '../../../../lib/repositories/meals.js';
+import { errorToResponse } from '../../../../lib/http.js';
+import {
+  normalizeLoggedAt,
+  requireIntegerId,
+  requireNumber,
+  requireString,
+} from '../../../../lib/validation.js';
 
-export const dynamic = "force-dynamic";
-
-function normalizeLoggedAt(value?: string | null) {
-  if (!value) return null;
-  return value.replace('T', ' ').replace(/Z$/, '').slice(0, 19);
-}
+export const dynamic = 'force-dynamic';
 
 interface RouteParams {
   id: string;
@@ -15,83 +17,45 @@ export async function PUT(
   request: Request,
   { params }: { params: RouteParams }
 ) {
-  const { id } = params;
-  const numericId = parseInt(id);
-  const body = await request.json();
-
-  const { description, amount, unit, calories, protein, carbs, fat, logged_at } = body;
-  const normalizedLoggedAt = normalizeLoggedAt(logged_at);
-
-  const url = process.env.TURSO_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!url || !authToken) {
-    return Response.json({ error: "Missing credentials" }, { status: 500 });
-  }
-
   try {
-    const client = createClient({
-      url: url.trim().replace('libsql://', 'https://'),
-      authToken: authToken.trim()
+    const numericId = requireIntegerId(params.id, 'meal id');
+    const body = await request.json();
+
+    const rowsAffected = await updateMealById(numericId, {
+      description: requireString(body.description, 'description', { maxLength: 160 }),
+      amount: requireNumber(body.amount, 'amount', { min: 0 }),
+      unit: requireString(body.unit, 'unit', { maxLength: 40 }),
+      calories: requireNumber(body.calories, 'calories', { min: 0 }),
+      protein: requireNumber(body.protein, 'protein', { min: 0 }),
+      carbs: requireNumber(body.carbs, 'carbs', { min: 0 }),
+      fat: requireNumber(body.fat, 'fat', { min: 0 }),
+      logged_at: normalizeLoggedAt(body.logged_at),
     });
 
-    // Build dynamic UPDATE — only update logged_at if provided
-    const fields = ['description = ?', 'amount = ?', 'unit = ?', 'calories = ?', 'protein = ?', 'carbs = ?', 'fat = ?'];
-    const values: any[] = [description, amount, unit, calories, protein, carbs, fat];
-    if (normalizedLoggedAt) {
-      fields.push('logged_at = ?');
-      values.push(normalizedLoggedAt);
-    }
-    values.push(numericId);
-
-    const result = await client.execute({
-      sql: `UPDATE meals SET ${fields.join(', ')} WHERE id = ?`,
-      args: values
-    });
-
-    if (result.rowsAffected === 0) {
-      return Response.json({ error: "Meal not found" }, { status: 404 });
+    if (rowsAffected === 0) {
+      return Response.json({ error: 'Meal not found' }, { status: 404 });
     }
 
     return Response.json({ success: true, id: numericId });
   } catch (error: any) {
-    console.error('[API ERROR] UPDATE meal:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return errorToResponse(error);
   }
 }
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: RouteParams }
 ) {
-  const { id } = params;
-  const numericId = parseInt(id);
-
-  const url = process.env.TURSO_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!url || !authToken) {
-    return Response.json({ error: "Missing credentials" }, { status: 500 });
-  }
-
   try {
-    const client = createClient({
-      url: url.trim().replace('libsql://', 'https://'),
-      authToken: authToken.trim()
-    });
+    const numericId = requireIntegerId(params.id, 'meal id');
+    const rowsAffected = await deleteMealById(numericId);
 
-    const result = await client.execute({
-      sql: `DELETE FROM meals WHERE id = ?`,
-      args: [numericId]
-    });
-
-    if (result.rowsAffected === 0) {
-      return Response.json({ error: "Meal not found" }, { status: 404 });
+    if (rowsAffected === 0) {
+      return Response.json({ error: 'Meal not found' }, { status: 404 });
     }
 
     return Response.json({ success: true, id: numericId });
   } catch (error: any) {
-    console.error('[API ERROR] DELETE meal:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return errorToResponse(error);
   }
 }

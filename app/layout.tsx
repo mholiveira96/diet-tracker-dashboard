@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "Diet Tracker PWA",
-  description: "Chat-first diet tracker with analytics and profile settings.",
+  title: "Diet Tracker",
+  description: "Registro de dieta e treino com chat, analytics e perfil.",
   applicationName: "Diet Tracker",
   appleWebApp: {
     capable: true,
