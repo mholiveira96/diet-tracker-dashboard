@@ -97,13 +97,20 @@ def split_sql_statements(sql_text: str) -> list[str]:
     return statements
 
 
+def strip_line_comments(sql_text: str) -> str:
+    """Remove standalone SQL comments without discarding the statement below them."""
+    return "\n".join(
+        line for line in sql_text.splitlines() if not line.lstrip().startswith("--")
+    )
+
+
 def run_migration(migration_path: Path) -> bool:
     if not migration_path.exists():
         print(f"❌ Migration file not found: {migration_path}")
         return False
 
-    sql_text = migration_path.read_text()
-    statements = [stmt for stmt in split_sql_statements(sql_text) if stmt and not stmt.lstrip().startswith("--")]
+    sql_text = strip_line_comments(migration_path.read_text())
+    statements = [stmt for stmt in split_sql_statements(sql_text) if stmt]
 
     print(f"🚀 Running migration: {migration_path.name}")
     print(f"   Found {len(statements)} SQL statements")
@@ -113,7 +120,16 @@ def run_migration(migration_path: Path) -> bool:
 
     for index, statement in enumerate(statements, start=1):
         try:
-            execute_sql(statement)
+            response = execute_sql(statement)
+            errors = [
+                result.get("error", {}).get("message", "Unknown Turso pipeline error")
+                for result in response.get("results", [])
+                if result.get("type") == "error"
+            ]
+            if errors:
+                raise RuntimeError("; ".join(errors))
+            if not response.get("results"):
+                raise RuntimeError("Turso pipeline returned no statement result")
             success_count += 1
             print(f"   [{index}/{len(statements)}] ✅ OK")
         except Exception as exc:

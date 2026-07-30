@@ -4,7 +4,8 @@ import React from 'react';
 import { Button } from '../../components/ui/button';
 import { Select } from '../../components/ui/select';
 import { ProfileNumberField } from './shared';
-import type { GoalsState, PreferencesState } from './types';
+import { AuditPanel } from './audit-panel';
+import type { AuditEvent, GoalsState, PreferencesState } from './types';
 
 export function ProfileScreen({
   goals,
@@ -13,6 +14,9 @@ export function ProfileScreen({
   onGoalsChange,
   onPreferencesChange,
   onSave,
+  auditEvents,
+  restoringAuditId,
+  onRestoreAudit,
 }: {
   goals: GoalsState;
   preferences: PreferencesState;
@@ -20,6 +24,9 @@ export function ProfileScreen({
   onGoalsChange: (next: GoalsState) => void;
   onPreferencesChange: (next: PreferencesState) => void;
   onSave: () => void;
+  auditEvents: AuditEvent[];
+  restoringAuditId: number | null;
+  onRestoreAudit: (event: AuditEvent) => void;
 }) {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4 lg:px-0">
@@ -60,6 +67,8 @@ export function ProfileScreen({
       <Button onClick={onSave} disabled={savingProfile} className="w-full">
         {savingProfile ? 'Salvando ajustes...' : 'Salvar ajustes'}
       </Button>
+
+      <AuditPanel events={auditEvents} restoringAuditId={restoringAuditId} onRestore={onRestoreAudit} />
     </div>
   );
 }

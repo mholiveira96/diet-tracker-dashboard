@@ -55,3 +55,28 @@ export type PreferencesState = {
   parserMode: 'conservative' | 'balanced' | 'aggressive';
   imageRetentionDays: number;
 };
+
+export type ProfileSummary = {
+  id: number;
+  slug: string;
+  display_name: string;
+  status: string;
+};
+
+export type GroupOverviewItem = ProfileSummary & {
+  goal_calories: number;
+  goal_protein: number;
+  kcal: number;
+  protein: number;
+  workout_kcal: number;
+};
+
+export type AuditEvent = {
+  id: number;
+  profile_id: number;
+  entity_type: 'meal' | 'workout';
+  entity_id: string;
+  action: 'update' | 'delete' | 'restore' | string;
+  created_at: string;
+  reverted_audit_event_id?: number | null;
+};

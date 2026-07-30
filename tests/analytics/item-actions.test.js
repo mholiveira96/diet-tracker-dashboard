@@ -100,6 +100,6 @@ test('buildEditPayload falls back to safe workout defaults', () => {
 });
 
 test('buildDeleteCopy is human for meal and workout', () => {
-  assert.equal(buildDeleteCopy({ type: 'meal', description: 'Jantar' }), 'Apagar refeição “Jantar”?');
-  assert.equal(buildDeleteCopy({ type: 'workout', description: 'Corrida' }), 'Apagar treino “Corrida”?');
+  assert.equal(buildDeleteCopy({ type: 'meal', description: 'Jantar' }), 'Apagar refeição “Jantar”? Esta ação é pública, ficará registrada no histórico e poderá ser restaurada.');
+  assert.equal(buildDeleteCopy({ type: 'workout', description: 'Corrida' }), 'Apagar treino “Corrida”? Esta ação é pública, ficará registrada no histórico e poderá ser restaurada.');
 });

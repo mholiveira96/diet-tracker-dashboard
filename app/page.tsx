@@ -6,11 +6,14 @@ import dateUtils from '../lib/date.js';
 import tabUtils from '../lib/ui/tabs.js';
 import chatPresentation from '../lib/chat/presentation.js';
 import analyticsActions from '../lib/analytics/item-actions.js';
+import profileDashboard from '../lib/ui/profile-dashboard.js';
 import { ChatScreen } from './_components/chat-screen';
 import { AnalyticsScreen } from './_components/analytics-screen';
 import { ProfileScreen } from './_components/profile-screen';
 import { EditItemModal } from './_components/edit-item-modal';
-import type { AnalyticsData, AnalyticsTimelineItem, ChatAttachment, ChatMessage, GoalsState, PreferencesState, TabKey } from './_components/types';
+import { GroupOverview } from './_components/group-overview';
+import { Select } from '../components/ui/select';
+import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, ChatAttachment, ChatMessage, GoalsState, GroupOverviewItem, PreferencesState, ProfileSummary, TabKey } from './_components/types';
 
 const { getTodayInTimezone, shiftDate } = dateUtils as {
   getTodayInTimezone: (now?: Date | string, timeZone?: string) => string;
@@ -31,6 +34,13 @@ const { getItemResource, buildEditPayload, buildDeleteCopy } = analyticsActions 
   getItemResource: (item: AnalyticsTimelineItem) => { itemType: 'meal' | 'workout'; recordId: number; endpoint: string };
   buildEditPayload: (item: AnalyticsTimelineItem) => any;
   buildDeleteCopy: (item: AnalyticsTimelineItem) => string;
+};
+
+const { PROFILE_STORAGE_KEY, getStoredProfileId, profileRequestUrl, withProfileId } = profileDashboard as {
+  PROFILE_STORAGE_KEY: string;
+  getStoredProfileId: (storage: Storage | null | undefined) => number | null;
+  profileRequestUrl: (path: string, params?: Record<string, string | number | null | undefined>) => string;
+  withProfileId: (payload: any, profileId: number) => any;
 };
 
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
@@ -59,6 +69,14 @@ export default function HomePage() {
   const [sending, setSending] = useState(false);
   const [stagedAttachments, setStagedAttachments] = useState<ChatAttachment[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
+  const [overview, setOverview] = useState<GroupOverviewItem[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return getStoredProfileId(window.localStorage);
+  });
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [restoringAuditId, setRestoringAuditId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => getTodayInTimezone(new Date(), 'America/Sao_Paulo'));
   const [goals, setGoals] = useState<GoalsState>({ calories: 2500, protein: 200, carbs: 270, fat: 70 });
   const [preferences, setPreferences] = useState<PreferencesState>({ parserMode: 'balanced', imageRetentionDays: 180 });
@@ -79,19 +97,44 @@ export default function HomePage() {
 
   const displayedMessages = useMemo(() => [...messages, ...pendingMessages], [messages, pendingMessages]);
 
-  async function loadThread() {
-    const payload = await parseJsonResponse(await fetch('/api/chat/thread', { cache: 'no-store' }));
+  async function loadThread(profileId = activeProfileId) {
+    if (!profileId) {
+      setMessages([]);
+      setPendingMessages([]);
+      return;
+    }
+    const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/chat/thread', { profileId }), { cache: 'no-store' }));
     if (payload.messages) setMessages(payload.messages);
   }
 
-  async function loadAnalytics(date = selectedDate) {
-    const payload = await parseJsonResponse(await fetch(`/api/data?date=${date}`, { cache: 'no-store' }));
+  async function loadProfiles(date = selectedDate) {
+    const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/profiles', { date }), { cache: 'no-store' }));
+    setProfiles(payload.profiles || []);
+    setOverview(payload.overview || []);
+  }
+
+  async function loadAnalytics(date = selectedDate, profileId = activeProfileId) {
+    if (!profileId) {
+      setAnalytics(null);
+      return;
+    }
+    const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/data', { profileId, date }), { cache: 'no-store' }));
     setAnalytics(payload);
   }
 
-  async function loadProfile() {
+  async function loadAudit(profileId = activeProfileId) {
+    if (!profileId) {
+      setAuditEvents([]);
+      return;
+    }
+    const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/audit', { profileId }), { cache: 'no-store' }));
+    setAuditEvents(payload.events || []);
+  }
+
+  async function loadProfile(profileId = activeProfileId) {
+    if (!profileId) return;
     const [goalsPayload, prefPayload] = await Promise.all([
-      parseJsonResponse(await fetch('/api/goals', { cache: 'no-store' })),
+      parseJsonResponse(await fetch(profileRequestUrl('/api/goals', { profileId }), { cache: 'no-store' })),
       parseJsonResponse(await fetch('/api/preferences', { cache: 'no-store' })),
     ]);
     setGoals(goalsPayload);
@@ -99,14 +142,27 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    Promise.all([loadThread(), loadAnalytics(selectedDate), loadProfile()]).catch((error) => {
-      setSubmissionFeedback(error.message || 'Não consegui carregar os dados iniciais.');
-    });
-
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    loadProfiles(selectedDate).catch((error) => {
+      setSubmissionFeedback(error.message || 'Não consegui carregar o resumo do grupo.');
+    });
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!activeProfileId) {
+      setAnalytics(null);
+      setAuditEvents([]);
+      return;
+    }
+    Promise.all([loadThread(activeProfileId), loadAnalytics(selectedDate, activeProfileId), loadProfile(activeProfileId), loadAudit(activeProfileId)]).catch((error) => {
+      setSubmissionFeedback(error.message || 'Não consegui carregar os dados do perfil.');
+    });
+  }, [activeProfileId, selectedDate]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -115,20 +171,22 @@ export default function HomePage() {
   }, [activeTab]);
 
   useEffect(() => {
-    loadAnalytics(selectedDate).catch((error) => {
-      setSubmissionFeedback(error.message || 'Não consegui atualizar a análise.');
-    });
-  }, [selectedDate]);
+    if (typeof window === 'undefined') return;
+    if (activeProfileId) window.localStorage.setItem(PROFILE_STORAGE_KEY, String(activeProfileId));
+    else window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+  }, [activeProfileId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, pendingMessages, activeTab]);
 
   async function handleUpload(file: File) {
+    if (!activeProfileId) return;
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('profileId', String(activeProfileId));
       const payload = await parseJsonResponse(await fetch('/api/chat/upload', { method: 'POST', body: formData }));
       if (payload.attachment) {
         setStagedAttachments((current) => [...current, payload.attachment]);
@@ -142,7 +200,7 @@ export default function HomePage() {
   }
 
   async function handleSend() {
-    if (!text.trim() && stagedAttachments.length === 0) return;
+    if (!activeProfileId || (!text.trim() && stagedAttachments.length === 0)) return;
 
     const textToSend = text;
     const attachmentsToSend = [...stagedAttachments];
@@ -161,6 +219,7 @@ export default function HomePage() {
         body: JSON.stringify({
           text: textToSend,
           attachmentIds: attachmentsToSend.map((attachment) => attachment.id),
+          profileId: activeProfileId,
         }),
       }));
 
@@ -181,10 +240,15 @@ export default function HomePage() {
   }
 
   async function handleConfirmDraft(messageId: number) {
+    if (!activeProfileId) return;
     setConfirmingMessageId(messageId);
     setSubmissionFeedback('Salvando rascunho...');
     try {
-      const payload = await parseJsonResponse(await fetch(`/api/chat/messages/${messageId}/confirm`, { method: 'POST' }));
+      const payload = await parseJsonResponse(await fetch(`/api/chat/messages/${messageId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: activeProfileId }),
+      }));
       if (payload.messages) {
         setMessages(payload.messages);
         setSubmissionFeedback('Rascunho salvo com sucesso.');
@@ -198,6 +262,7 @@ export default function HomePage() {
   }
 
   async function saveProfile() {
+    if (!activeProfileId) return;
     setSavingProfile(true);
     setSubmissionFeedback('Salvando perfil...');
     try {
@@ -205,7 +270,7 @@ export default function HomePage() {
         parseJsonResponse(await fetch('/api/goals', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(goals),
+          body: JSON.stringify(withProfileId(goals, activeProfileId)),
         })),
         parseJsonResponse(await fetch('/api/preferences', {
           method: 'PUT',
@@ -213,7 +278,7 @@ export default function HomePage() {
           body: JSON.stringify(preferences),
         })),
       ]);
-      await loadAnalytics(selectedDate);
+      await Promise.all([loadAnalytics(selectedDate, activeProfileId), loadProfiles(selectedDate)]);
       setSubmissionFeedback('Ajustes salvos.');
     } catch (error: any) {
       setSubmissionFeedback(error.message || 'Não consegui salvar o perfil.');
@@ -234,7 +299,7 @@ export default function HomePage() {
   }
 
   async function handleSaveItem() {
-    if (!editingItem || !editingDraft) return;
+    if (!editingItem || !editingDraft || !activeProfileId) return;
     const { endpoint, itemType } = getItemResource(editingItem);
 
     setSavingItem(true);
@@ -243,9 +308,9 @@ export default function HomePage() {
       await parseJsonResponse(await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingDraft),
+        body: JSON.stringify(withProfileId(editingDraft, activeProfileId)),
       }));
-      await loadAnalytics(selectedDate);
+      await Promise.all([loadAnalytics(selectedDate, activeProfileId), loadAudit(activeProfileId), loadProfiles(selectedDate)]);
       setSubmissionFeedback(itemType === 'workout' ? 'Treino atualizado.' : 'Refeição atualizada.');
       setEditingItem(null);
       setEditingDraft(null);
@@ -257,6 +322,7 @@ export default function HomePage() {
   }
 
   async function handleDeleteItem(item: AnalyticsTimelineItem) {
+    if (!activeProfileId) return;
     const confirmed = window.confirm(buildDeleteCopy(item));
     if (!confirmed) return;
 
@@ -264,8 +330,8 @@ export default function HomePage() {
     setDeletingItemId(item.id);
     setSubmissionFeedback(itemType === 'workout' ? 'Apagando treino...' : 'Apagando refeição...');
     try {
-      await parseJsonResponse(await fetch(endpoint, { method: 'DELETE' }));
-      await loadAnalytics(selectedDate);
+      await parseJsonResponse(await fetch(profileRequestUrl(endpoint, { profileId: activeProfileId }), { method: 'DELETE' }));
+      await Promise.all([loadAnalytics(selectedDate, activeProfileId), loadAudit(activeProfileId), loadProfiles(selectedDate)]);
       setSubmissionFeedback(itemType === 'workout' ? 'Treino apagado.' : 'Refeição apagada.');
       if (editingItem?.id === item.id) {
         setEditingItem(null);
@@ -278,6 +344,33 @@ export default function HomePage() {
     }
   }
 
+  async function handleRestoreAudit(event: AuditEvent) {
+    if (!activeProfileId) return;
+    setRestoringAuditId(event.id);
+    setSubmissionFeedback('Restaurando registro...');
+    try {
+      await parseJsonResponse(await fetch(`/api/audit/${event.id}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: activeProfileId }),
+      }));
+      await Promise.all([loadAnalytics(selectedDate, activeProfileId), loadAudit(activeProfileId), loadProfiles(selectedDate)]);
+      setSubmissionFeedback('Registro restaurado.');
+    } catch (error: any) {
+      setSubmissionFeedback(error.message || 'Não consegui restaurar esse registro.');
+    } finally {
+      setRestoringAuditId(null);
+    }
+  }
+
+  function selectProfile(profileId: number | null) {
+    setActiveProfileId(profileId);
+    setMessages([]);
+    setPendingMessages([]);
+    setStagedAttachments([]);
+    if (profileId) setActiveTab('analytics');
+  }
+
   return (
     <main className="min-h-screen bg-[#0b141a] text-white">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#111b21]/95 backdrop-blur">
@@ -286,65 +379,86 @@ export default function HomePage() {
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">Diet Tracker</p>
             <h1 className="text-lg font-semibold">Matheusinho</h1>
           </div>
-          <div className="hidden items-center gap-2 rounded-full bg-white/5 p-1 lg:flex">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.key;
-              return (
-                <button
-                  key={`header-${tab.key}`}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm ${active ? 'bg-white/10 text-emerald-300' : 'text-white/55'}`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
+          <div className="flex min-w-0 items-center gap-2">
+            <label className="sr-only" htmlFor="active-profile">Perfil ativo</label>
+            <Select
+              id="active-profile"
+              value={activeProfileId ? String(activeProfileId) : ''}
+              onChange={(event) => selectProfile(event.target.value ? Number(event.target.value) : null)}
+              className="h-10 w-40 rounded-xl py-1 text-xs sm:w-48"
+            >
+              <option value="">Visão do grupo</option>
+              {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.display_name}</option>)}
+            </Select>
+            <div className="hidden items-center gap-2 rounded-full bg-white/5 p-1 lg:flex">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.key;
+                return (
+                  <button
+                    key={`header-${tab.key}`}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm ${active ? 'bg-white/10 text-emerald-300' : 'text-white/55'}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </header>
 
       <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
-        {activeTab === 'chat' && (
-          <ChatScreen
-            displayedMessages={displayedMessages}
-            stagedAttachments={stagedAttachments}
-            submissionFeedback={submissionFeedback}
-            confirmingMessageId={confirmingMessageId}
-            onConfirmDraft={handleConfirmDraft}
-            messagesEndRef={messagesEndRef}
-          />
-        )}
+        {!activeProfileId ? (
+          <GroupOverview overview={overview} selectedDate={selectedDate} onSelectProfile={selectProfile} />
+        ) : (
+          <>
+            {activeTab === 'chat' && (
+              <ChatScreen
+                displayedMessages={displayedMessages}
+                stagedAttachments={stagedAttachments}
+                submissionFeedback={submissionFeedback}
+                confirmingMessageId={confirmingMessageId}
+                onConfirmDraft={handleConfirmDraft}
+                messagesEndRef={messagesEndRef}
+              />
+            )}
 
-        {activeTab === 'analytics' && analytics && (
-          <AnalyticsScreen
-            analytics={analytics}
-            selectedDate={selectedDate}
-            netCalories={netCalories}
-            deletingItemId={deletingItemId}
-            onPreviousDate={() => setSelectedDate((value) => shiftDate(value, -1))}
-            onNextDate={() => setSelectedDate((value) => shiftDate(value, 1))}
-            onEditItem={openEditItem}
-            onDeleteItem={handleDeleteItem}
-          />
-        )}
+            {activeTab === 'analytics' && analytics && (
+              <AnalyticsScreen
+                analytics={analytics}
+                selectedDate={selectedDate}
+                netCalories={netCalories}
+                deletingItemId={deletingItemId}
+                onPreviousDate={() => setSelectedDate((value) => shiftDate(value, -1))}
+                onNextDate={() => setSelectedDate((value) => shiftDate(value, 1))}
+                onEditItem={openEditItem}
+                onDeleteItem={handleDeleteItem}
+              />
+            )}
 
-        {activeTab === 'profile' && (
-          <ProfileScreen
-            goals={goals}
-            preferences={preferences}
-            savingProfile={savingProfile}
-            onGoalsChange={setGoals}
-            onPreferencesChange={setPreferences}
-            onSave={saveProfile}
-          />
+            {activeTab === 'profile' && (
+              <ProfileScreen
+                goals={goals}
+                preferences={preferences}
+                savingProfile={savingProfile}
+                onGoalsChange={setGoals}
+                onPreferencesChange={setPreferences}
+                onSave={saveProfile}
+                auditEvents={auditEvents}
+                restoringAuditId={restoringAuditId}
+                onRestoreAudit={handleRestoreAudit}
+              />
+            )}
+          </>
         )}
       </section>
 
       <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#111b21] pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
         <div className="mx-auto w-full max-w-6xl lg:px-6">
-          {activeTab === 'chat' && (
+          {activeProfileId && activeTab === 'chat' && (
             <div className="mx-auto max-w-md px-3 pb-3 lg:px-0 lg:pb-0">
               <div className="flex items-end gap-2 rounded-3xl bg-[#202c33] p-2">
                 <button onClick={() => fileInputRef.current?.click()} className="rounded-full bg-white/5 p-3 text-white/75">

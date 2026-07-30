@@ -47,6 +47,9 @@ export function EditItemModal({
           </Button>
         </div>
 
+        <p className="mb-3 rounded-xl bg-amber-300/10 px-3 py-2 text-xs text-amber-100/85">
+          Esta edição é pública e ficará registrada no histórico deste perfil.
+        </p>
         <div className="space-y-3">
           <Label>
             <span className="mb-2 block">{isWorkout ? 'Treino' : 'Descrição'}</span>

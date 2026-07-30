@@ -1,5 +1,6 @@
 import { getDashboardData } from '../../../lib/repositories/dashboard.js';
 import { errorToResponse } from '../../../lib/http.js';
+import { requireIntegerId } from '../../../lib/validation.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,9 +8,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetDate = searchParams.get('date') || 'now';
-    const payload = await getDashboardData(targetDate);
-    return Response.json(payload);
-  } catch (error: any) {
-    return errorToResponse(error);
-  }
+    const profileId = requireIntegerId(searchParams.get('profileId'), 'profileId');
+    return Response.json(await getDashboardData(profileId, targetDate));
+  } catch (error: any) { return errorToResponse(error); }
 }

@@ -13,10 +13,10 @@ test('buildMealInsert normalizes numbers and defaults amount/unit', () => {
     protein: '1.3',
     carbs: '27',
     fat: '0.4',
-  });
+  }, 7);
 
-  assert.equal(insert.sql.includes('INSERT INTO meals'), true);
-  assert.deepEqual(insert.args.slice(0, 7), ['Banana', 1, 'porção', 105, 1.3, 27, 0.4]);
+  assert.equal(insert.sql.includes('profile_id'), true);
+  assert.deepEqual(insert.args, ['Banana', 1, 'porção', 105, 1.3, 27, 0.4, 7]);
 });
 
 test('buildWorkoutInsert normalizes workout writes', () => {
@@ -24,8 +24,8 @@ test('buildWorkoutInsert normalizes workout writes', () => {
     modality: 'corrida',
     duration_min: '32',
     calories: '280',
-  });
+  }, 7);
 
-  assert.equal(insert.sql.includes('INSERT INTO workouts'), true);
-  assert.deepEqual(insert.args.slice(0, 3), ['corrida', 32, 280]);
+  assert.equal(insert.sql.includes('profile_id'), true);
+  assert.deepEqual(insert.args, ['corrida', 32, 280, 7]);
 });
