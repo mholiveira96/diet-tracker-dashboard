@@ -157,7 +157,7 @@ export function AnalyticsScreen({
 
           <div className="space-y-2 lg:hidden">
             {analytics.items?.length ? analytics.items.map((item) => (
-              <div key={item.id} className="rounded-xl border border-white/[0.07] bg-white/[0.035] p-3 text-sm">
+              <div key={item.id} className="settle-in rounded-xl border border-white/[0.07] bg-white/[0.035] p-3 text-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -185,7 +185,7 @@ export function AnalyticsScreen({
                   </thead>
                   <tbody>
                     {analytics.items.map((item) => (
-                      <tr key={`desktop-${item.id}`} className="border-t border-white/[0.07] align-top text-white/85 transition hover:bg-white/[0.025]">
+                      <tr key={`desktop-${item.id}`} className="settle-in border-t border-white/[0.07] align-top text-white/85 transition hover:bg-white/[0.025]">
                         <td className="px-4 py-3.5 tabular-nums text-white/60">{formatTimelineTime(item.logged_at)}</td>
                         <td className="px-4 py-3.5">{item.type === 'workout' ? 'Treino' : 'Refeição'}</td>
                         <td className="px-4 py-3.5 font-medium">{item.description}</td>

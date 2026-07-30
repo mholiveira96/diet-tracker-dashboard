@@ -2,38 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 67, 34, 56;
-  --background-start-rgb: 255, 247, 251;
-  --background-end-rgb: 250, 233, 243;
-}
-
+:root { --foreground-rgb: 67, 34, 56; --background-start-rgb: 255, 248, 252; --background-end-rgb: 250, 232, 243; }
 * { box-sizing: border-box; }
-
 html { background: rgb(var(--background-start-rgb)); }
-
 body {
   margin: 0;
   color: rgb(var(--foreground-rgb));
-  background:
-    radial-gradient(circle at 8% -10%, rgba(255, 208, 229, 0.85), transparent 34rem),
-    radial-gradient(circle at 96% 8%, rgba(244, 207, 255, 0.7), transparent 31rem),
-    linear-gradient(145deg, rgb(var(--background-start-rgb)) 0%, rgb(var(--background-end-rgb)) 100%);
+  background: radial-gradient(circle at 8% -10%, rgba(255,208,229,.84), transparent 34rem), radial-gradient(circle at 96% 8%, rgba(244,207,255,.66), transparent 31rem), linear-gradient(145deg, rgb(var(--background-start-rgb)) 0%, rgb(var(--background-end-rgb)) 100%);
   font-family: ui-rounded, "SF Pro Rounded", "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
   min-height: 100vh;
 }
-
 button, input, select, textarea { font: inherit; }
 img { display: block; }
 
-/* The data views reuse shared structural components. These overrides keep them in the same iOS-like light surface system. */
-[class*="bg-[#0b141a]"], [class*="bg-[#111b21]"], [class*="bg-[#111b"] { background-color: rgba(255, 255, 255, 0.66) !important; }
-[class*="border-white/"] { border-color: rgba(239, 211, 226, 0.88) !important; }
+/* iOS-inspired materials: light, translucent surfaces and borders — never drop shadows. */
+.ios-surface { border: 1px solid rgba(255,255,255,.82); background: rgba(255,255,255,.62); backdrop-filter: blur(22px) saturate(135%); -webkit-backdrop-filter: blur(22px) saturate(135%); }
+.ios-chip { border: 1px solid rgba(255,255,255,.88); background: rgba(255,255,255,.68); color: #76556b; border-radius: 16px; padding: .5rem .75rem; }
+[class*="bg-[#0b141a]"], [class*="bg-[#111b21]"], [class*="bg-[#111b"] { background-color: rgba(255,255,255,.64) !important; }
+[class*="border-white/"] { border-color: rgba(239,211,226,.88) !important; }
 [class*="text-white"] { color: #4b2a3f !important; }
-[class*="bg-black/"] { background-color: rgba(255, 255, 255, 0.55) !important; }
-[class*="bg-white/"] { background-color: rgba(255, 255, 255, 0.72) !important; }
+[class*="bg-black/"] { background-color: rgba(255,255,255,.55) !important; }
+[class*="bg-white/"] { background-color: rgba(255,255,255,.72) !important; }
 [class*="text-emerald"] { color: #d83f86 !important; }
 [class*="bg-emerald"] { background-color: #f9c9df !important; }
 [class*="border-emerald"] { border-color: #f1a8cb !important; }
+/* Surfaces provide depth via material and borders, not elevation. */
+[class*="shadow"], .shadow, .shadow-sm { box-shadow: none !important; }
+
+/* Minimum iOS-like 44 pt target for every actionable control. */
+button, select, input:not([type="hidden"]), textarea { min-height: 44px; }
+button { min-width: 44px; }
+button:disabled { cursor: not-allowed; }
+
+/* New records enter by decelerating into their final position: soft, brief, and never springy. */
+@keyframes settle-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+.settle-in { animation: settle-in 220ms cubic-bezier(.2,.72,.32,1) both; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 
 @layer utilities { .text-balance { text-wrap: balance; } }

@@ -274,11 +274,11 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b141a] bg-[radial-gradient(circle_at_50%_-20%,rgba(16,185,129,0.13),transparent_38%),linear-gradient(180deg,#0b141a_0%,#0e171d_100%)] text-white">
-      <header className="sticky top-0 z-20 border-b border-white/[0.08] bg-[#111b21]/95 backdrop-blur-xl">
+    <main className="min-h-screen bg-transparent text-[#432238]">
+      <header className="sticky top-0 z-20 border-b border-white/70 bg-[#fff8fc]/80 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 pb-3 pt-4 lg:px-6">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300/80">Diet Tracker</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-pink-600">Diet Tracker</p>
             <h1 className="mt-0.5 text-lg font-bold tracking-tight">Matheusinho</h1>
           </div>
           <div className="flex min-w-0 items-center gap-2">
@@ -287,12 +287,12 @@ export default function HomePage() {
               id="active-profile"
               value={activeProfileId ? String(activeProfileId) : ''}
               onChange={(event) => selectProfile(event.target.value ? Number(event.target.value) : null)}
-              className="h-10 w-40 rounded-lg border-white/[0.12] bg-black/20 py-1 text-xs sm:w-48"
+              className="h-11 w-40 rounded-2xl border-[#ead6e1] bg-white/70 py-1 text-xs text-[#543047] sm:w-48"
             >
               <option value="">Visão do grupo</option>
               {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.display_name}</option>)}
             </Select>
-            <div className="hidden items-center gap-1 rounded-xl border border-white/[0.08] bg-black/15 p-1 lg:flex">
+            <div className="hidden items-center gap-1 rounded-2xl border border-white/80 bg-white/60 p-1 lg:flex">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.key;
@@ -300,7 +300,7 @@ export default function HomePage() {
                   <button
                     key={`header-${tab.key}`}
                     onClick={() => selectTab(tab.key)}
-                    className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${active ? 'bg-emerald-300/12 text-emerald-200 shadow-sm' : 'text-white/55 hover:bg-white/[0.05] hover:text-white/80'}`}
+                    className={`flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 ${active ? 'bg-pink-500 text-white' : 'text-[#76556b] hover:bg-pink-50 hover:text-[#49263d]'}`}
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}
@@ -312,11 +312,13 @@ export default function HomePage() {
         </div>
       </header>
 
-      {submissionFeedback && <div className="mx-auto max-w-6xl px-4 pt-4 lg:px-6"><div role="status" className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.08] px-3 py-2 text-sm text-emerald-100/90">{submissionFeedback}</div></div>}
+      {submissionFeedback && <div className="mx-auto max-w-6xl px-4 pt-4 lg:px-6"><div role="status" className="rounded-2xl border border-pink-200 bg-white/70 px-3 py-2 text-sm text-[#6e425b]">{submissionFeedback}</div></div>}
 
       <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
-        {activeTab === 'group' || !activeProfileId ? (
+        {activeTab === 'group' ? (
           <GroupOverview overview={overview} leaderboard={leaderboard} adherence={adherence} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
+        ) : !activeProfileId ? (
+          <div className="mx-auto w-full max-w-xl px-4 py-10 lg:px-0"><div className="ios-surface rounded-[28px] p-6 text-center"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-pink-600">Perfil necessário</p><h2 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-[#432238]">Escolha uma pessoa para continuar</h2><p className="mt-2 text-sm leading-6 text-[#816176]">Desempenho e Perfil são individuais. Selecione um perfil abaixo.</p><div className="mt-5 grid grid-cols-2 gap-2">{profiles.map((profile) => <button key={profile.id} onClick={() => selectProfile(profile.id)} className="ios-surface min-h-12 rounded-2xl px-3 text-sm font-semibold text-[#5b344b] transition-colors duration-200 hover:bg-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500">{profile.display_name}</button>)}</div></div></div>
         ) : (
           <>
             {activeTab === 'analytics' && analytics && (
@@ -353,9 +355,9 @@ export default function HomePage() {
         )}
       </section>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.08] bg-[#111b21]/95 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 backdrop-blur-xl lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
+      <footer className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:static lg:mt-6 lg:px-0 lg:pb-0 lg:pt-0">
         <div className="mx-auto w-full max-w-6xl lg:px-6">
-          <nav className="grid grid-cols-3 gap-1 px-2 lg:hidden">
+          <nav aria-label="Navegação principal" className="grid grid-cols-3 gap-1 rounded-[22px] border border-white/80 bg-white/80 p-1.5 backdrop-blur-2xl lg:hidden">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.key;
@@ -363,7 +365,7 @@ export default function HomePage() {
                 <button
                   key={tab.key}
                   onClick={() => selectTab(tab.key)}
-                  className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-3 py-2 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${active ? 'bg-emerald-300/12 text-emerald-200' : 'text-white/55'}`}
+                  className={`flex min-h-12 flex-col items-center justify-center rounded-[16px] px-3 py-2 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 ${active ? 'bg-pink-500 text-white' : 'text-[#816176] hover:bg-pink-50'}`}
                 >
                   <Icon className="mb-1 h-4 w-4" />
                   {tab.label}

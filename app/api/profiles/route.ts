@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date') || 'now';
-    const [profiles, overview, leaderboard, adherence] = await Promise.all([listProfiles(), getGroupOverview(date), getSevenDayDeficitLeaderboard(date), getGroupAdherenceHistory(date)]);
+    const [profiles, overview, leaderboard, adherence] = await Promise.all([listProfiles(), getGroupOverview(date), getSevenDayDeficitLeaderboard(date), getGroupAdherenceHistory('now', '2026-12-31')]);
     return Response.json({ profiles, overview, leaderboard, adherence });
   } catch (error: any) { return errorToResponse(error); }
 }
