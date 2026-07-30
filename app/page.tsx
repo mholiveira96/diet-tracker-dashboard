@@ -37,8 +37,8 @@ const { PROFILE_STORAGE_KEY, getStoredProfileId, profileRequestUrl, withProfileI
 };
 
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
-  { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { key: 'profile', label: 'Profile', icon: Settings },
+  { key: 'analytics', label: 'Desempenho', icon: BarChart3 },
+  { key: 'profile', label: 'Perfil', icon: Settings },
 ];
 
 async function parseJsonResponse(response: Response) {
@@ -58,6 +58,8 @@ export default function HomePage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [overview, setOverview] = useState<GroupOverviewItem[]>([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState<number | null>(() => {
     if (typeof window === 'undefined') return null;
     return getStoredProfileId(window.localStorage);
@@ -120,8 +122,11 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    setLoadingProfiles(true);
     loadProfiles(selectedDate).catch((error) => {
       setSubmissionFeedback(error.message || 'Não consegui carregar o resumo do grupo.');
+    }).finally(() => {
+      setLoadingProfiles(false);
     });
   }, [selectedDate]);
 
@@ -129,10 +134,14 @@ export default function HomePage() {
     if (!activeProfileId) {
       setAnalytics(null);
       setAuditEvents([]);
+      setLoadingAnalytics(false);
       return;
     }
+    setLoadingAnalytics(true);
     Promise.all([loadAnalytics(selectedDate, activeProfileId), loadProfile(activeProfileId), loadAudit(activeProfileId)]).catch((error) => {
       setSubmissionFeedback(error.message || 'Não consegui carregar os dados do perfil.');
+    }).finally(() => {
+      setLoadingAnalytics(false);
     });
   }, [activeProfileId, selectedDate]);
 
@@ -256,12 +265,12 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b141a] text-white">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#111b21]/95 backdrop-blur">
+    <main className="min-h-screen bg-[#0b141a] bg-[radial-gradient(circle_at_50%_-20%,rgba(16,185,129,0.13),transparent_38%),linear-gradient(180deg,#0b141a_0%,#0e171d_100%)] text-white">
+      <header className="sticky top-0 z-20 border-b border-white/[0.08] bg-[#111b21]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 pb-3 pt-4 lg:px-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">Diet Tracker</p>
-            <h1 className="text-lg font-semibold">Matheusinho</h1>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300/80">Diet Tracker</p>
+            <h1 className="mt-0.5 text-lg font-bold tracking-tight">Matheusinho</h1>
           </div>
           <div className="flex min-w-0 items-center gap-2">
             <label className="sr-only" htmlFor="active-profile">Perfil ativo</label>
@@ -269,12 +278,12 @@ export default function HomePage() {
               id="active-profile"
               value={activeProfileId ? String(activeProfileId) : ''}
               onChange={(event) => selectProfile(event.target.value ? Number(event.target.value) : null)}
-              className="h-10 w-40 rounded-xl py-1 text-xs sm:w-48"
+              className="h-10 w-40 rounded-lg border-white/[0.12] bg-black/20 py-1 text-xs sm:w-48"
             >
               <option value="">Visão do grupo</option>
               {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.display_name}</option>)}
             </Select>
-            <div className="hidden items-center gap-2 rounded-full bg-white/5 p-1 lg:flex">
+            <div className="hidden items-center gap-1 rounded-xl border border-white/[0.08] bg-black/15 p-1 lg:flex">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.key;
@@ -282,7 +291,7 @@ export default function HomePage() {
                   <button
                     key={`header-${tab.key}`}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm ${active ? 'bg-white/10 text-emerald-300' : 'text-white/55'}`}
+                    className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${active ? 'bg-emerald-300/12 text-emerald-200 shadow-sm' : 'text-white/55 hover:bg-white/[0.05] hover:text-white/80'}`}
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}
@@ -294,9 +303,11 @@ export default function HomePage() {
         </div>
       </header>
 
+      {submissionFeedback && <div className="mx-auto max-w-6xl px-4 pt-4 lg:px-6"><div role="status" className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.08] px-3 py-2 text-sm text-emerald-100/90">{submissionFeedback}</div></div>}
+
       <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
         {!activeProfileId ? (
-          <GroupOverview overview={overview} selectedDate={selectedDate} onSelectProfile={selectProfile} />
+          <GroupOverview overview={overview} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
         ) : (
           <>
             {activeTab === 'analytics' && analytics && (
@@ -310,6 +321,10 @@ export default function HomePage() {
                 onEditItem={openEditItem}
                 onDeleteItem={handleDeleteItem}
               />
+            )}
+
+            {activeTab === 'analytics' && !analytics && (
+              <div className="mx-auto w-full max-w-3xl px-4 py-8 lg:px-0"><div className="rounded-2xl border border-white/[0.08] bg-[#111b21] px-6 py-12 text-center shadow-[0_12px_35px_rgba(0,0,0,0.16)]"><div className="mx-auto h-9 w-9 animate-pulse rounded-lg border border-emerald-300/20 bg-emerald-300/10" /><p className="mt-4 text-sm font-medium text-white/70">{loadingAnalytics ? 'Preparando o painel de desempenho...' : 'O painel ainda não está disponível.'}</p><p className="mt-1 text-xs text-white/40">{loadingAnalytics ? 'Carregando metas, registros e histórico.' : 'Selecione outro perfil ou tente novamente em instantes.'}</p></div></div>
             )}
 
             {activeTab === 'profile' && (
@@ -329,7 +344,7 @@ export default function HomePage() {
         )}
       </section>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#111b21] pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
+      <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.08] bg-[#111b21]/95 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 backdrop-blur-xl lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
         <div className="mx-auto w-full max-w-6xl lg:px-6">
           <nav className="grid grid-cols-2 gap-1 px-2 lg:hidden">
             {tabs.map((tab) => {
@@ -339,7 +354,7 @@ export default function HomePage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex flex-col items-center justify-center rounded-2xl px-3 py-2 text-xs ${active ? 'bg-white/10 text-emerald-300' : 'text-white/55'}`}
+                  className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-3 py-2 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${active ? 'bg-emerald-300/12 text-emerald-200' : 'text-white/55'}`}
                 >
                   <Icon className="mb-1 h-4 w-4" />
                   {tab.label}

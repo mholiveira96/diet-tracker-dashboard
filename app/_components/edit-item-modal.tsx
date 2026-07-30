@@ -35,22 +35,22 @@ export function EditItemModal({
   const isWorkout = editingItem.type === 'workout';
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end bg-black/60 p-3 lg:items-center lg:justify-center">
-      <div className="w-full rounded-[28px] bg-[#111b21] p-4 shadow-2xl lg:max-w-2xl lg:p-6">
+    <div className="fixed inset-0 z-40 flex items-end bg-black/70 p-3 backdrop-blur-sm lg:items-center lg:justify-center">
+      <div role="dialog" aria-modal="true" aria-label={isWorkout ? 'Editar treino' : 'Editar refeição'} className="w-full rounded-[28px] border border-white/[0.1] bg-[#111b21] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.55)] lg:max-w-2xl lg:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <div className="text-xs uppercase tracking-wide text-emerald-300/80">{isWorkout ? 'Editar treino' : 'Editar refeição'}</div>
-            <div className="text-lg font-semibold text-white">{editingItem.description}</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300/80">{isWorkout ? 'Editar treino' : 'Editar refeição'}</div>
+            <div className="mt-1 text-lg font-semibold text-white">{editingItem.description}</div>
           </div>
-          <Button onClick={onClose} disabled={savingItem} variant="secondary" className="h-10 w-10 rounded-full p-0 text-white/70">
+          <Button onClick={onClose} disabled={savingItem} variant="secondary" className="h-10 w-10 rounded-lg p-0 text-white/70" aria-label="Fechar edição">
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <p className="mb-3 rounded-xl bg-amber-300/10 px-3 py-2 text-xs text-amber-100/85">
+        <p className="mb-5 rounded-xl border border-amber-300/15 bg-amber-300/[0.08] px-3 py-2.5 text-xs leading-relaxed text-amber-100/85">
           Esta edição é pública e ficará registrada no histórico deste perfil.
         </p>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <Label>
             <span className="mb-2 block">{isWorkout ? 'Treino' : 'Descrição'}</span>
             <Input
@@ -143,7 +143,7 @@ export function EditItemModal({
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-6 grid grid-cols-2 gap-3 border-t border-white/[0.08] pt-4">
           <Button onClick={onClose} disabled={savingItem} variant="outline" className="w-full">
             Cancelar
           </Button>

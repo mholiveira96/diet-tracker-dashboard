@@ -26,20 +26,20 @@ export function AuditPanel({
   onRestore: (event: AuditEvent) => void;
 }) {
   return (
-    <section className="rounded-3xl bg-[#111b21] p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="rounded-2xl border border-white/[0.08] bg-[#111b21] p-5">
+      <div className="mb-5 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-emerald-300" />
-          <h2 className="text-sm font-semibold text-white/85">Histórico recente</h2>
+          <div className="rounded-lg border border-emerald-300/15 bg-emerald-300/10 p-2"><History className="h-4 w-4 text-emerald-300" /></div>
+          <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300/80">Transparência</p><h2 className="mt-0.5 text-base font-semibold">Histórico recente</h2></div>
         </div>
-        <span className="text-xs text-white/45">{events.length} evento{events.length === 1 ? '' : 's'}</span>
+        <span className="rounded-md border border-white/[0.08] bg-black/15 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-white/50">{events.length} evento{events.length === 1 ? '' : 's'}</span>
       </div>
       {events.length ? (
-        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
           {events.map((event) => (
-            <div key={event.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/5 px-3 py-2.5">
+            <div key={event.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-3">
               <div className="min-w-0">
-                <p className="text-sm text-white/80">{eventCopy(event)}</p>
+                <p className="text-sm font-medium text-white/80">{eventCopy(event)}</p>
                 <p className="mt-0.5 text-xs text-white/45">{eventTime(event.created_at)}</p>
               </div>
               {event.action === 'delete' && !event.reverted_audit_event_id && (
@@ -59,7 +59,7 @@ export function AuditPanel({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-white/50">As edições e exclusões deste perfil aparecerão aqui.</p>
+        <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-4 py-7 text-center"><p className="text-sm font-medium text-white/60">Nenhuma alteração recente.</p><p className="mt-1 text-xs text-white/40">Edições e exclusões deste perfil ficam registradas aqui.</p></div>
       )}
     </section>
   );

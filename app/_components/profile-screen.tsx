@@ -29,10 +29,10 @@ export function ProfileScreen({
   onRestoreAudit: (event: AuditEvent) => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4 lg:px-0">
-      <section className="rounded-3xl bg-[#111b21] p-4">
-        <h2 className="mb-3 text-sm font-semibold text-white/85">Metas diárias</h2>
-        <div className="grid grid-cols-2 gap-3">
+    <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-5 lg:px-0 lg:py-7">
+      <section className="rounded-2xl border border-white/[0.08] bg-[#111b21] p-5 shadow-[0_12px_35px_rgba(0,0,0,0.16)]">
+        <div className="mb-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300/80">Ponto de partida</p><h2 className="mt-1 text-base font-semibold">Metas diárias</h2><p className="mt-1 text-xs text-white/45">Defina referências objetivas para acompanhar o dia.</p></div>
+        <div className="grid grid-cols-2 gap-4">
           <ProfileNumberField label="Calorias" value={goals.calories} max={20000} onChange={(value) => onGoalsChange({ ...goals, calories: value })} />
           <ProfileNumberField label="Proteína" value={goals.protein} max={1000} onChange={(value) => onGoalsChange({ ...goals, protein: value })} />
           <ProfileNumberField label="Carbo" value={goals.carbs} max={1000} onChange={(value) => onGoalsChange({ ...goals, carbs: value })} />
@@ -40,11 +40,11 @@ export function ProfileScreen({
         </div>
       </section>
 
-      <section className="rounded-3xl bg-[#111b21] p-4">
-        <h2 className="mb-3 text-sm font-semibold text-white/85">Preferências do chat</h2>
-        <div className="space-y-3">
+      <section className="rounded-2xl border border-white/[0.08] bg-[#111b21] p-5">
+        <div className="mb-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300/80">Preferências</p><h2 className="mt-1 text-base font-semibold">Como registrar</h2><p className="mt-1 text-xs text-white/45">Ajuste o nível de confirmação e a retenção das imagens.</p></div>
+        <div className="space-y-4">
           <div>
-            <div className="mb-2 text-sm text-white/75">Como a IA deve agir</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/55">Como a IA deve agir</div>
             <Select
               value={preferences.parserMode}
               onChange={(event) => onPreferencesChange({ ...preferences, parserMode: event.target.value as PreferencesState['parserMode'] })}
@@ -64,7 +64,7 @@ export function ProfileScreen({
         </div>
       </section>
 
-      <Button onClick={onSave} disabled={savingProfile} className="w-full">
+      <Button onClick={onSave} disabled={savingProfile} className="h-12 w-full font-semibold shadow-[0_10px_28px_rgba(16,185,129,0.18)]">
         {savingProfile ? 'Salvando ajustes...' : 'Salvar ajustes'}
       </Button>
 
