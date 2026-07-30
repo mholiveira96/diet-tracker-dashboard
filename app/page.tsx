@@ -1,19 +1,17 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, Camera, MessageCircle, Settings } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BarChart3, Settings } from 'lucide-react';
 import dateUtils from '../lib/date.js';
 import tabUtils from '../lib/ui/tabs.js';
-import chatPresentation from '../lib/chat/presentation.js';
 import analyticsActions from '../lib/analytics/item-actions.js';
 import profileDashboard from '../lib/ui/profile-dashboard.js';
-import { ChatScreen } from './_components/chat-screen';
 import { AnalyticsScreen } from './_components/analytics-screen';
 import { ProfileScreen } from './_components/profile-screen';
 import { EditItemModal } from './_components/edit-item-modal';
 import { GroupOverview } from './_components/group-overview';
 import { Select } from '../components/ui/select';
-import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, ChatAttachment, ChatMessage, GoalsState, GroupOverviewItem, PreferencesState, ProfileSummary, TabKey } from './_components/types';
+import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupOverviewItem, PreferencesState, ProfileSummary, TabKey } from './_components/types';
 
 const { getTodayInTimezone, shiftDate } = dateUtils as {
   getTodayInTimezone: (now?: Date | string, timeZone?: string) => string;
@@ -23,11 +21,6 @@ const { getTodayInTimezone, shiftDate } = dateUtils as {
 const { TAB_STORAGE_KEY, getStoredTab } = tabUtils as {
   TAB_STORAGE_KEY: string;
   getStoredTab: (storage: Storage | null | undefined) => TabKey;
-};
-
-const { describeResult, buildPendingMessages } = chatPresentation as {
-  describeResult: (result: any) => string | null;
-  buildPendingMessages: (input: { text?: string; attachments?: ChatAttachment[] }) => { userMessage: ChatMessage; waitingMessage: ChatMessage };
 };
 
 const { getItemResource, buildEditPayload, buildDeleteCopy } = analyticsActions as {
@@ -44,7 +37,6 @@ const { PROFILE_STORAGE_KEY, getStoredProfileId, profileRequestUrl, withProfileI
 };
 
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
-  { key: 'chat', label: 'Chat', icon: MessageCircle },
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
   { key: 'profile', label: 'Profile', icon: Settings },
 ];
@@ -59,15 +51,10 @@ async function parseJsonResponse(response: Response) {
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (typeof window === 'undefined') return 'chat';
-    return getStoredTab(window.sessionStorage);
+    if (typeof window === 'undefined') return 'analytics';
+    const stored = getStoredTab(window.sessionStorage);
+    return stored === 'profile' ? 'profile' : 'analytics';
   });
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
-  const [text, setText] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [stagedAttachments, setStagedAttachments] = useState<ChatAttachment[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [overview, setOverview] = useState<GroupOverviewItem[]>([]);
@@ -82,30 +69,15 @@ export default function HomePage() {
   const [preferences, setPreferences] = useState<PreferencesState>({ parserMode: 'balanced', imageRetentionDays: 180 });
   const [savingProfile, setSavingProfile] = useState(false);
   const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null);
-  const [confirmingMessageId, setConfirmingMessageId] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<AnalyticsTimelineItem | null>(null);
   const [editingDraft, setEditingDraft] = useState<any | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const netCalories = useMemo(() => {
     if (!analytics) return 0;
     return Number(analytics.summary?.kcal || 0) - Number(analytics.workouts?.total || 0);
   }, [analytics]);
-
-  const displayedMessages = useMemo(() => [...messages, ...pendingMessages], [messages, pendingMessages]);
-
-  async function loadThread(profileId = activeProfileId) {
-    if (!profileId) {
-      setMessages([]);
-      setPendingMessages([]);
-      return;
-    }
-    const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/chat/thread', { profileId }), { cache: 'no-store' }));
-    if (payload.messages) setMessages(payload.messages);
-  }
 
   async function loadProfiles(date = selectedDate) {
     const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/profiles', { date }), { cache: 'no-store' }));
@@ -159,7 +131,7 @@ export default function HomePage() {
       setAuditEvents([]);
       return;
     }
-    Promise.all([loadThread(activeProfileId), loadAnalytics(selectedDate, activeProfileId), loadProfile(activeProfileId), loadAudit(activeProfileId)]).catch((error) => {
+    Promise.all([loadAnalytics(selectedDate, activeProfileId), loadProfile(activeProfileId), loadAudit(activeProfileId)]).catch((error) => {
       setSubmissionFeedback(error.message || 'Não consegui carregar os dados do perfil.');
     });
   }, [activeProfileId, selectedDate]);
@@ -175,91 +147,6 @@ export default function HomePage() {
     if (activeProfileId) window.localStorage.setItem(PROFILE_STORAGE_KEY, String(activeProfileId));
     else window.localStorage.removeItem(PROFILE_STORAGE_KEY);
   }, [activeProfileId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, pendingMessages, activeTab]);
-
-  async function handleUpload(file: File) {
-    if (!activeProfileId) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('profileId', String(activeProfileId));
-      const payload = await parseJsonResponse(await fetch('/api/chat/upload', { method: 'POST', body: formData }));
-      if (payload.attachment) {
-        setStagedAttachments((current) => [...current, payload.attachment]);
-        setSubmissionFeedback('Imagem anexada.');
-      }
-    } catch (error: any) {
-      setSubmissionFeedback(error.message || 'Não consegui enviar a imagem.');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleSend() {
-    if (!activeProfileId || (!text.trim() && stagedAttachments.length === 0)) return;
-
-    const textToSend = text;
-    const attachmentsToSend = [...stagedAttachments];
-    const optimistic = buildPendingMessages({ text: textToSend, attachments: attachmentsToSend });
-
-    setPendingMessages([optimistic.userMessage, optimistic.waitingMessage]);
-    setText('');
-    setStagedAttachments([]);
-    setSending(true);
-    setSubmissionFeedback('Mensagem recebida. Vou registrar agora...');
-
-    try {
-      const payload = await parseJsonResponse(await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: textToSend,
-          attachmentIds: attachmentsToSend.map((attachment) => attachment.id),
-          profileId: activeProfileId,
-        }),
-      }));
-
-      if (payload.messages) {
-        setMessages(payload.messages);
-        setPendingMessages([]);
-        setSubmissionFeedback(describeResult(payload.result) || 'Registro atualizado.');
-        await loadAnalytics(selectedDate);
-      }
-    } catch (error: any) {
-      setPendingMessages([]);
-      setText(textToSend);
-      setStagedAttachments(attachmentsToSend);
-      setSubmissionFeedback(error.message || 'Não consegui registrar agora.');
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function handleConfirmDraft(messageId: number) {
-    if (!activeProfileId) return;
-    setConfirmingMessageId(messageId);
-    setSubmissionFeedback('Salvando rascunho...');
-    try {
-      const payload = await parseJsonResponse(await fetch(`/api/chat/messages/${messageId}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: activeProfileId }),
-      }));
-      if (payload.messages) {
-        setMessages(payload.messages);
-        setSubmissionFeedback('Rascunho salvo com sucesso.');
-        await loadAnalytics(selectedDate);
-      }
-    } catch (error: any) {
-      setSubmissionFeedback(error.message || 'Não consegui salvar esse rascunho.');
-    } finally {
-      setConfirmingMessageId(null);
-    }
-  }
 
   async function saveProfile() {
     if (!activeProfileId) return;
@@ -365,9 +252,6 @@ export default function HomePage() {
 
   function selectProfile(profileId: number | null) {
     setActiveProfileId(profileId);
-    setMessages([]);
-    setPendingMessages([]);
-    setStagedAttachments([]);
     if (profileId) setActiveTab('analytics');
   }
 
@@ -415,17 +299,6 @@ export default function HomePage() {
           <GroupOverview overview={overview} selectedDate={selectedDate} onSelectProfile={selectProfile} />
         ) : (
           <>
-            {activeTab === 'chat' && (
-              <ChatScreen
-                displayedMessages={displayedMessages}
-                stagedAttachments={stagedAttachments}
-                submissionFeedback={submissionFeedback}
-                confirmingMessageId={confirmingMessageId}
-                onConfirmDraft={handleConfirmDraft}
-                messagesEndRef={messagesEndRef}
-              />
-            )}
-
             {activeTab === 'analytics' && analytics && (
               <AnalyticsScreen
                 analytics={analytics}
@@ -458,38 +331,7 @@ export default function HomePage() {
 
       <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#111b21] pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
         <div className="mx-auto w-full max-w-6xl lg:px-6">
-          {activeProfileId && activeTab === 'chat' && (
-            <div className="mx-auto max-w-md px-3 pb-3 lg:px-0 lg:pb-0">
-              <div className="flex items-end gap-2 rounded-3xl bg-[#202c33] p-2">
-                <button onClick={() => fileInputRef.current?.click()} className="rounded-full bg-white/5 p-3 text-white/75">
-                  <Camera className="h-5 w-5" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) handleUpload(file);
-                    event.target.value = '';
-                  }}
-                />
-                <textarea
-                  rows={1}
-                  value={text}
-                  onChange={(event) => setText(event.target.value)}
-                  placeholder={uploading ? 'Enviando imagem...' : 'Registre refeição ou treino. Ex: 3 ovos e café'}
-                  className="max-h-28 flex-1 resize-none bg-transparent px-1 py-3 text-sm outline-none placeholder:text-white/35"
-                />
-                <button onClick={handleSend} disabled={sending || uploading} className="rounded-full bg-emerald-400 px-4 py-3 text-sm font-semibold text-[#0b141a] disabled:opacity-60">
-                  {sending ? 'Registrando' : 'Registrar'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <nav className="grid grid-cols-3 gap-1 px-2 lg:hidden">
+          <nav className="grid grid-cols-2 gap-1 px-2 lg:hidden">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.key;

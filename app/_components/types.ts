@@ -1,4 +1,4 @@
-export type TabKey = 'chat' | 'analytics' | 'profile';
+export type TabKey = 'analytics' | 'profile';
 
 export type ChatAttachment = {
   id: number;
