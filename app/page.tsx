@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Settings } from 'lucide-react';
+import { BarChart3, Settings, UsersRound } from 'lucide-react';
 import dateUtils from '../lib/date.js';
 import tabUtils from '../lib/ui/tabs.js';
 import analyticsActions from '../lib/analytics/item-actions.js';
@@ -11,7 +11,7 @@ import { ProfileScreen } from './_components/profile-screen';
 import { EditItemModal } from './_components/edit-item-modal';
 import { GroupOverview } from './_components/group-overview';
 import { Select } from '../components/ui/select';
-import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupOverviewItem, PreferencesState, ProfileSummary, TabKey } from './_components/types';
+import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupOverviewItem, PreferencesState, ProfileSummary, SevenDayDeficitItem, TabKey } from './_components/types';
 
 const { getTodayInTimezone, shiftDate } = dateUtils as {
   getTodayInTimezone: (now?: Date | string, timeZone?: string) => string;
@@ -37,6 +37,7 @@ const { PROFILE_STORAGE_KEY, getStoredProfileId, profileRequestUrl, withProfileI
 };
 
 const tabs: Array<{ key: TabKey; label: string; icon: React.ComponentType<any> }> = [
+  { key: 'group', label: 'Visão do grupo', icon: UsersRound },
   { key: 'analytics', label: 'Desempenho', icon: BarChart3 },
   { key: 'profile', label: 'Perfil', icon: Settings },
 ];
@@ -51,13 +52,14 @@ async function parseJsonResponse(response: Response) {
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (typeof window === 'undefined') return 'analytics';
+    if (typeof window === 'undefined') return 'group';
     const stored = getStoredTab(window.sessionStorage);
-    return stored === 'profile' ? 'profile' : 'analytics';
+    return getStoredProfileId(window.localStorage) ? stored : 'group';
   });
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [overview, setOverview] = useState<GroupOverviewItem[]>([]);
+  const [leaderboard, setLeaderboard] = useState<SevenDayDeficitItem[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState<number | null>(() => {
@@ -85,6 +87,7 @@ export default function HomePage() {
     const payload = await parseJsonResponse(await fetch(profileRequestUrl('/api/profiles', { date }), { cache: 'no-store' }));
     setProfiles(payload.profiles || []);
     setOverview(payload.overview || []);
+    setLeaderboard(payload.leaderboard || []);
   }
 
   async function loadAnalytics(date = selectedDate, profileId = activeProfileId) {
@@ -261,7 +264,11 @@ export default function HomePage() {
 
   function selectProfile(profileId: number | null) {
     setActiveProfileId(profileId);
-    if (profileId) setActiveTab('analytics');
+    setActiveTab(profileId ? 'analytics' : 'group');
+  }
+
+  function selectTab(tab: TabKey) {
+    setActiveTab(tab);
   }
 
   return (
@@ -290,7 +297,7 @@ export default function HomePage() {
                 return (
                   <button
                     key={`header-${tab.key}`}
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => selectTab(tab.key)}
                     className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${active ? 'bg-emerald-300/12 text-emerald-200 shadow-sm' : 'text-white/55 hover:bg-white/[0.05] hover:text-white/80'}`}
                   >
                     <Icon className="h-4 w-4" />
@@ -306,8 +313,8 @@ export default function HomePage() {
       {submissionFeedback && <div className="mx-auto max-w-6xl px-4 pt-4 lg:px-6"><div role="status" className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.08] px-3 py-2 text-sm text-emerald-100/90">{submissionFeedback}</div></div>}
 
       <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
-        {!activeProfileId ? (
-          <GroupOverview overview={overview} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
+        {activeTab === 'group' || !activeProfileId ? (
+          <GroupOverview overview={overview} leaderboard={leaderboard} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
         ) : (
           <>
             {activeTab === 'analytics' && analytics && (
@@ -346,14 +353,14 @@ export default function HomePage() {
 
       <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.08] bg-[#111b21]/95 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 backdrop-blur-xl lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:pb-0 lg:pt-0">
         <div className="mx-auto w-full max-w-6xl lg:px-6">
-          <nav className="grid grid-cols-2 gap-1 px-2 lg:hidden">
+          <nav className="grid grid-cols-3 gap-1 px-2 lg:hidden">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => selectTab(tab.key)}
                   className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-3 py-2 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ${active ? 'bg-emerald-300/12 text-emerald-200' : 'text-white/55'}`}
                 >
                   <Icon className="mb-1 h-4 w-4" />

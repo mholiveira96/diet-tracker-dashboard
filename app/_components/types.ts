@@ -1,4 +1,4 @@
-export type TabKey = 'analytics' | 'profile';
+export type TabKey = 'group' | 'analytics' | 'profile';
 
 export type ChatAttachment = {
   id: number;
@@ -69,6 +69,17 @@ export type GroupOverviewItem = ProfileSummary & {
   kcal: number;
   protein: number;
   workout_kcal: number;
+};
+
+export type SevenDayDeficitItem = ProfileSummary & {
+  active_days: number;
+  goal_calories: number;
+  kcal: number;
+  workout_kcal: number;
+  net_calories: number;
+  seven_day_goal: number;
+  deficit_calories: number;
+  deficit_percent: number;
 };
 
 export type AuditEvent = {
