@@ -11,7 +11,7 @@ import { ProfileScreen } from './_components/profile-screen';
 import { EditItemModal } from './_components/edit-item-modal';
 import { GroupOverview } from './_components/group-overview';
 import { Select } from '../components/ui/select';
-import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupOverviewItem, PreferencesState, ProfileSummary, SevenDayDeficitItem, TabKey } from './_components/types';
+import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupAdherenceProfile, GroupOverviewItem, PreferencesState, ProfileSummary, SevenDayDeficitItem, TabKey } from './_components/types';
 
 const { getTodayInTimezone, shiftDate } = dateUtils as {
   getTodayInTimezone: (now?: Date | string, timeZone?: string) => string;
@@ -60,6 +60,7 @@ export default function HomePage() {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [overview, setOverview] = useState<GroupOverviewItem[]>([]);
   const [leaderboard, setLeaderboard] = useState<SevenDayDeficitItem[]>([]);
+  const [adherence, setAdherence] = useState<GroupAdherenceProfile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState<number | null>(() => {
@@ -88,6 +89,7 @@ export default function HomePage() {
     setProfiles(payload.profiles || []);
     setOverview(payload.overview || []);
     setLeaderboard(payload.leaderboard || []);
+    setAdherence(payload.adherence || []);
   }
 
   async function loadAnalytics(date = selectedDate, profileId = activeProfileId) {
@@ -314,7 +316,7 @@ export default function HomePage() {
 
       <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
         {activeTab === 'group' || !activeProfileId ? (
-          <GroupOverview overview={overview} leaderboard={leaderboard} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
+          <GroupOverview overview={overview} leaderboard={leaderboard} adherence={adherence} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
         ) : (
           <>
             {activeTab === 'analytics' && analytics && (

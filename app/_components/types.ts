@@ -82,6 +82,22 @@ export type SevenDayDeficitItem = ProfileSummary & {
   deficit_percent: number;
 };
 
+export type AdherenceDay = {
+  date: string;
+  status: 'no_record' | 'below' | 'on_target' | 'above';
+  kcal: number;
+  workout_kcal: number;
+  net_calories: number;
+  goal_calories: number;
+};
+
+export type GroupAdherenceProfile = {
+  id: number;
+  slug: string;
+  display_name: string;
+  days: AdherenceDay[];
+};
+
 export type AuditEvent = {
   id: number;
   profile_id: number;
