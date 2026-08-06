@@ -81,17 +81,17 @@ function useInstallAction() {
 export function PwaInstallButton() {
   const { deferredPrompt, ios, standalone, mobile } = usePwaInstallState();
   const { installing, install } = useInstallAction();
-  const [iosHelp, setIosHelp] = React.useState(false);
-  const canInstall = !standalone && (Boolean(deferredPrompt) || (ios && mobile));
+  const [installHelp, setInstallHelp] = React.useState(false);
+  const canInstall = !standalone && (Boolean(deferredPrompt) || mobile);
   const InstallIcon = standalone ? CheckCircle2 : Download;
 
   async function handleInstall() {
-    if (ios && mobile) {
-      setIosHelp(true);
+    if (!deferredPrompt) {
+      setInstallHelp(true);
       return;
     }
     const choice = await install();
-    if (choice?.outcome === 'accepted') setIosHelp(false);
+    if (choice?.outcome === 'accepted') setInstallHelp(false);
   }
 
   return (
@@ -100,7 +100,7 @@ export function PwaInstallButton() {
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-500/15 text-pink-300"><Smartphone className="h-5 w-5" /></div>
         <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-white">Instalar o Hunger Games</p><p className="mt-1 text-xs leading-5 text-white/45">Abra como aplicativo para acessar mais rápido e usar uma janela dedicada.</p></div>
       </div>
-      {iosHelp ? <div className="mt-3 rounded-xl bg-pink-500/10 p-3 text-xs leading-5 text-white/65"><p className="font-semibold text-pink-200">No iPhone ou iPad</p><p className="mt-1">Toque em <Share className="mx-0.5 inline h-3.5 w-3.5 align-[-2px]" /> Compartilhar e depois em <strong className="text-white">Adicionar à Tela de Início</strong>.</p></div> : <button type="button" onClick={handleInstall} disabled={standalone || !canInstall || installing} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-pink-500 px-4 text-sm font-bold text-white transition-colors hover:bg-pink-600 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"><InstallIcon className="h-4 w-4" />{standalone ? 'Aplicativo já instalado' : installing ? 'Abrindo instalação...' : canInstall ? 'Instalar aplicativo' : 'Instalação indisponível no navegador'}</button>}
+      {installHelp ? <div className="mt-3 rounded-xl bg-pink-500/10 p-3 text-xs leading-5 text-white/65"><p className="font-semibold text-pink-200">Como instalar</p><p className="mt-1">{ios ? <>Toque em <Share className="mx-0.5 inline h-3.5 w-3.5 align-[-2px]" /> Compartilhar e depois em <strong className="text-white">Adicionar à Tela de Início</strong>.</> : <>Abra o menu do navegador e escolha <strong className="text-white">Instalar aplicativo</strong> ou <strong className="text-white">Adicionar à tela inicial</strong>.</>}</p></div> : <button type="button" onClick={handleInstall} disabled={standalone || !canInstall || installing} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-pink-500 px-4 text-sm font-bold text-white transition-colors hover:bg-pink-600 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"><InstallIcon className="h-4 w-4" />{standalone ? 'Aplicativo já instalado' : installing ? 'Abrindo instalação...' : deferredPrompt ? 'Instalar aplicativo' : 'Como instalar'}</button>}
       {standalone && <p className="mt-2 flex items-center justify-center gap-1 text-center text-[11px] text-emerald-300/80"><CheckCircle2 className="h-3.5 w-3.5" /> Hunger Games já está instalado</p>}
     </div>
   );
@@ -110,7 +110,7 @@ export function PwaInstallToast() {
   const { deferredPrompt, ios, standalone, mobile } = usePwaInstallState();
   const { installing, install } = useInstallAction();
   const [dismissed, setDismissed] = React.useState(false);
-  const [iosHelp, setIosHelp] = React.useState(false);
+  const [installHelp, setInstallHelp] = React.useState(false);
 
   React.useEffect(() => {
     setDismissed(hasRecentDismissal(window.localStorage.getItem(DISMISSAL_KEY)));
@@ -132,8 +132,8 @@ export function PwaInstallToast() {
   }
 
   async function handleInstall() {
-    if (ios) {
-      setIosHelp(true);
+    if (ios || !deferredPrompt) {
+      setInstallHelp(true);
       return;
     }
     const choice = await install();
@@ -147,7 +147,7 @@ export function PwaInstallToast() {
         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-pink-500"><img src="/hungergames/icons/icon-192.png" alt="" className="h-full w-full object-cover" /></div>
         <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-pink-600">Hunger Games</p><p className="mt-1 text-sm font-semibold">Instale no seu celular</p><p className="mt-0.5 text-xs leading-5 text-[#816176]">Acesso rápido, mesmo quando a rotina apertar.</p></div>
       </div>
-      {iosHelp ? <div className="mt-3 rounded-2xl bg-[#fff3f8] p-3 text-xs leading-5 text-[#76556b]"><p className="font-semibold text-[#572b47]">No iPhone ou iPad</p><p className="mt-1">Toque em <Share className="mx-0.5 inline h-3.5 w-3.5 align-[-2px]" /> Compartilhar e depois em <strong>Adicionar à Tela de Início</strong>.</p></div> : <button type="button" onClick={handleInstall} disabled={installing} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl bg-pink-500 px-3 text-sm font-bold text-white transition-colors hover:bg-pink-600 disabled:opacity-60"><Download className="h-4 w-4" />{installing ? 'Abrindo instalação...' : ios ? 'Como instalar' : 'Instalar agora'}</button>}
+      {installHelp ? <div className="mt-3 rounded-2xl bg-[#fff3f8] p-3 text-xs leading-5 text-[#76556b]"><p className="font-semibold text-[#572b47]">Como instalar</p><p className="mt-1">{ios ? <>Toque em <Share className="mx-0.5 inline h-3.5 w-3.5 align-[-2px]" /> Compartilhar e depois em <strong>Adicionar à Tela de Início</strong>.</> : <>Abra o menu do navegador e escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}</p></div> : <button type="button" onClick={handleInstall} disabled={installing} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl bg-pink-500 px-3 text-sm font-bold text-white transition-colors hover:bg-pink-600 disabled:opacity-60"><Download className="h-4 w-4" />{installing ? 'Abrindo instalação...' : deferredPrompt ? 'Instalar agora' : 'Como instalar'}</button>}
     </aside>
   );
 }
