@@ -5,20 +5,12 @@ import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import analyticsPresentation from '../../lib/analytics/presentation.js';
 import type { AnalyticsData, AnalyticsTimelineItem } from './types';
 import { MacroBar, MetricCard, metricIcons } from './shared';
+import { NetCaloriesChart } from './net-calorie-chart';
 
-const { formatTimelineTime, getHistoryCaloriesBar } = analyticsPresentation as {
+const { formatTimelineTime } = analyticsPresentation as {
   formatTimelineTime: (value?: string) => string;
-  getHistoryCaloriesBar: (day: any, goalCalories: number) => { width: string; background: string; tone: string };
 };
 
-function formatDayLabel(day: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'America/Sao_Paulo',
-  }).format(new Date(`${day}T12:00:00-03:00`));
-}
 
 function renderWorkoutDetails(item: AnalyticsTimelineItem) {
   const parts = [`${item.amount || 0} min`, `${item.calories} kcal`];
@@ -126,25 +118,7 @@ export function AnalyticsScreen({
               <MacroBar label="Gordura" value={analytics.summary?.fat || 0} goal={analytics.goals?.fat || 1} color="bg-amber-400" />
             </div>
 
-            <div className="rounded-2xl border border-white/[0.08] bg-[#111b21] p-5">
-              <div className="mb-5"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300/80">Tendência</p><h2 className="mt-1 text-base font-semibold">Últimos 7 dias</h2></div>
-              <div className="space-y-4">
-                {analytics.history?.slice(0, 7).map((day) => {
-                  const caloriesBar = getHistoryCaloriesBar(day, analytics.goals?.calories || 1);
-                  return (
-                    <div key={day.day}>
-                      <div className="mb-1.5 flex items-center justify-between text-xs text-white/65">
-                        <span className="font-medium capitalize">{formatDayLabel(day.day)}</span>
-                        <span className="tabular-nums">{day.net_kcal} <span className="text-white/30">/</span> {analytics.goals?.calories || 0} kcal líquidas</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-black/25 ring-1 ring-white/[0.06]">
-                        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: caloriesBar.width, background: caloriesBar.background }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <NetCaloriesChart history={analytics.history || []} goalCalories={analytics.goals?.calories || 0} />
           </div>
         </div>
 

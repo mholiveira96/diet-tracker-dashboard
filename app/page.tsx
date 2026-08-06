@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Settings, UsersRound } from 'lucide-react';
+import { BarChart3, Plus, Settings, UsersRound } from 'lucide-react';
 import dateUtils from '../lib/date.js';
 import tabUtils from '../lib/ui/tabs.js';
 import analyticsActions from '../lib/analytics/item-actions.js';
@@ -10,6 +10,7 @@ import { AnalyticsScreen } from './_components/analytics-screen';
 import { ProfileScreen } from './_components/profile-screen';
 import { EditItemModal } from './_components/edit-item-modal';
 import { GroupOverview } from './_components/group-overview';
+import { QuickLogModal, type QuickLogPayload, type QuickLogType } from './_components/quick-log-modal';
 import { Select } from '../components/ui/select';
 import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupAdherenceProfile, GroupOverviewItem, PreferencesState, ProfileSummary, SevenDayDeficitItem, TabKey } from './_components/types';
 
@@ -78,6 +79,9 @@ export default function HomePage() {
   const [editingDraft, setEditingDraft] = useState<any | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | number | null>(null);
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [quickLogType, setQuickLogType] = useState<QuickLogType>('meal');
+  const [savingQuickLog, setSavingQuickLog] = useState(false);
 
   const netCalories = useMemo(() => {
     if (!analytics) return 0;
@@ -245,6 +249,29 @@ export default function HomePage() {
     }
   }
 
+  async function handleQuickLog({ type, data }: QuickLogPayload) {
+    if (!activeProfileId) {
+      setSubmissionFeedback('Escolha um perfil antes de registrar.');
+      return;
+    }
+    setSavingQuickLog(true);
+    setSubmissionFeedback(type === 'meal' ? 'Salvando refeição...' : 'Salvando treino...');
+    try {
+      await parseJsonResponse(await fetch(`/api/${type === 'meal' ? 'meals' : 'workouts'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(withProfileId(data, activeProfileId)),
+      }));
+      await Promise.all([loadAnalytics(selectedDate, activeProfileId), loadAudit(activeProfileId), loadProfiles(selectedDate)]);
+      setQuickLogOpen(false);
+      setSubmissionFeedback(type === 'meal' ? 'Refeição registrada.' : 'Treino registrado.');
+    } catch (error: any) {
+      setSubmissionFeedback(error.message || 'Não consegui registrar agora.');
+    } finally {
+      setSavingQuickLog(false);
+    }
+  }
+
   async function handleRestoreAudit(event: AuditEvent) {
     if (!activeProfileId) return;
     setRestoringAuditId(event.id);
@@ -278,7 +305,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-20 border-b border-white/70 bg-[#fff8fc]/80 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 pb-3 pt-4 lg:px-6">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-pink-600">Diet Tracker</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-pink-600">Hunger Games</p>
             <h1 className="mt-0.5 text-lg font-bold tracking-tight">Matheusinho</h1>
           </div>
           <div className="flex min-w-0 items-center gap-2">
@@ -292,6 +319,7 @@ export default function HomePage() {
               <option value="">Visão do grupo</option>
               {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.display_name}</option>)}
             </Select>
+            <button type="button" onClick={() => { if (!activeProfileId) { setSubmissionFeedback('Escolha um perfil para registrar.'); return; } setQuickLogOpen(true); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-pink-500 px-3 text-xs font-bold text-white transition-colors hover:bg-pink-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Registrar</span></button>
             <div className="hidden items-center gap-1 rounded-2xl border border-white/80 bg-white/60 p-1 lg:flex">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -316,7 +344,7 @@ export default function HomePage() {
 
       <section className="mx-auto flex max-w-6xl flex-1 overflow-y-auto pb-24 lg:px-6 lg:pb-8">
         {activeTab === 'group' ? (
-          <GroupOverview overview={overview} leaderboard={leaderboard} adherence={adherence} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} />
+          <GroupOverview overview={overview} leaderboard={leaderboard} adherence={adherence} selectedDate={selectedDate} loading={loadingProfiles} onSelectProfile={selectProfile} onPreviousDate={() => setSelectedDate((value) => shiftDate(value, -1))} onNextDate={() => setSelectedDate((value) => shiftDate(value, 1))} />
         ) : !activeProfileId ? (
           <div className="mx-auto w-full max-w-xl px-4 py-10 lg:px-0"><div className="ios-surface rounded-[28px] p-6 text-center"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-pink-600">Perfil necessário</p><h2 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-[#432238]">Escolha uma pessoa para continuar</h2><p className="mt-2 text-sm leading-6 text-[#816176]">Desempenho e Perfil são individuais. Selecione um perfil abaixo.</p><div className="mt-5 grid grid-cols-2 gap-2">{profiles.map((profile) => <button key={profile.id} onClick={() => selectProfile(profile.id)} className="ios-surface min-h-12 rounded-2xl px-3 text-sm font-semibold text-[#5b344b] transition-colors duration-200 hover:bg-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500">{profile.display_name}</button>)}</div></div></div>
         ) : (
@@ -384,6 +412,7 @@ export default function HomePage() {
         onSave={handleSaveItem}
         onChange={(updater) => setEditingDraft((current: any) => updater(current))}
       />
+      <QuickLogModal open={quickLogOpen} type={quickLogType} saving={savingQuickLog} onTypeChange={setQuickLogType} onClose={() => setQuickLogOpen(false)} onSave={handleQuickLog} />
     </main>
   );
 }
