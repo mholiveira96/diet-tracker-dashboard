@@ -9,10 +9,11 @@ const {
   isStandaloneWindow,
 } = require('../../lib/pwa/install.js');
 
-test('PWA install visibility requires mobile, not standalone, and a supported path', () => {
+test('PWA install visibility supports native prompts and iOS mobile instructions', () => {
   assert.equal(canShowInstallToast({ standalone: false, mobile: true, dismissed: false, hasDeferredPrompt: true, ios: false }), true);
   assert.equal(canShowInstallToast({ standalone: true, mobile: true, dismissed: false, hasDeferredPrompt: true, ios: false }), false);
-  assert.equal(canShowInstallToast({ standalone: false, mobile: false, dismissed: false, hasDeferredPrompt: true, ios: false }), false);
+  assert.equal(canShowInstallToast({ standalone: false, mobile: false, dismissed: false, hasDeferredPrompt: true, ios: false }), true);
+  assert.equal(canShowInstallToast({ standalone: false, mobile: false, dismissed: false, hasDeferredPrompt: false, ios: false }), false);
   assert.equal(canShowInstallToast({ standalone: false, mobile: true, dismissed: false, hasDeferredPrompt: false, ios: true }), true);
 });
 
