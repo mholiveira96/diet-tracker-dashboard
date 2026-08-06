@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Select } from '../../components/ui/select';
 import { ProfileNumberField } from './shared';
 import { AuditPanel } from './audit-panel';
+import { PwaInstallButton } from './pwa-install-toast';
 import type { AuditEvent, GoalsState, PreferencesState } from './types';
 
 export function ProfileScreen({
@@ -62,6 +63,11 @@ export function ProfileScreen({
             onChange={(value) => onPreferencesChange({ ...preferences, imageRetentionDays: value })}
           />
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/[0.08] bg-[#111b21] p-5">
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-pink-300/80">Aplicativo</p><h2 className="mt-1 text-base font-semibold">Hunger Games no seu dispositivo</h2><p className="mt-1 text-xs text-white/45">Instale para abrir direto como aplicativo, sem depender da aba do navegador.</p></div>
+        <PwaInstallButton />
       </section>
 
       <Button onClick={onSave} disabled={savingProfile} className="h-12 w-full font-semibold shadow-[0_10px_28px_rgba(16,185,129,0.18)]">
