@@ -5,6 +5,7 @@ const {
   buildMealInsert,
   buildWorkoutInsert,
 } = require('../../lib/chat/persist.js');
+const { mealItemsForResult } = require('../../lib/chat/ingest.js');
 
 test('buildMealInsert normalizes numbers and defaults amount/unit', () => {
   const insert = buildMealInsert({
@@ -28,4 +29,17 @@ test('buildWorkoutInsert normalizes workout writes', () => {
 
   assert.equal(insert.sql.includes('profile_id'), true);
   assert.deepEqual(insert.args, ['corrida', 32, 280, 7]);
+});
+
+test('mealItemsForResult preserves item-level composite meals', () => {
+  const items = mealItemsForResult({
+    action: 'log_meal',
+    description: 'Almoço',
+    meal_items: [
+      { description: 'Arroz', amount: 150, unit: 'g', calories: 195 },
+      { description: 'Frango', amount: 120, unit: 'g', calories: 198 },
+    ],
+  });
+
+  assert.deepEqual(items.map((item) => item.description), ['Arroz', 'Frango']);
 });

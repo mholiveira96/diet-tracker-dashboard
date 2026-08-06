@@ -5,6 +5,7 @@ const {
   describeResult,
   buildPendingMessages,
   buildAssistantReplyText,
+  buildStandardLaunchReply,
 } = require('../../lib/chat/presentation.js');
 
 test('describeResult uses assertive success copy', () => {
@@ -19,21 +20,41 @@ test('describeResult uses assertive success copy', () => {
   );
 });
 
-test('buildAssistantReplyText uses assertive draft and clarify copy', () => {
+test('buildAssistantReplyText uses itemized preview and clarify copy', () => {
   assert.equal(
-    buildAssistantReplyText({ action: 'log_meal', description: 'Almoço completo' }, 'draft'),
-    'Refeição pronta: Almoço completo. Salve para registrar.'
+    buildAssistantReplyText({ action: 'log_meal', description: 'Almoço completo', calories: 600, protein: 30, carbs: 50, fat: 20 }, 'draft'),
+    '📝 Prévia do lançamento\n- Almoço completo: 600 kcal | 30,0g P | 50,0g C | 20,0g G\n\nTotal da refeição: 600 kcal | 30,0g P | 50,0g C | 20,0g G\n\nPosso lançar assim?'
   );
 
   assert.equal(
-    buildAssistantReplyText({ modality: 'Corrida 5km' }, 'draft'),
-    'Treino pronto: Corrida 5km. Salve para registrar.'
+    buildAssistantReplyText({ action: 'log_workout', modality: 'Corrida 5km', duration_min: 30, calories: 250 }, 'draft'),
+    '📝 Prévia do lançamento\n- Corrida 5km (30 min): 250 kcal\n\nTotal do treino: 250 kcal\n\nPosso lançar assim?'
   );
 
   assert.equal(
     buildAssistantReplyText({ question: 'Quantos gramas?' }, 'clarify'),
     'Responda isto para eu registrar: Quantos gramas?'
   );
+});
+
+test('buildStandardLaunchReply itemizes a composite meal and includes profile summary', () => {
+  const reply = buildStandardLaunchReply({
+    action: 'log_meal',
+    meal_items: [
+      { description: 'Arroz', amount: 150, unit: 'g', calories: 195, protein: 4, carbs: 42, fat: 0.5 },
+      { description: 'Frango', amount: 120, unit: 'g', calories: 198, protein: 37, carbs: 0, fat: 4 },
+    ],
+  }, {
+    summary: { kcal: 1200, protein: 100, carbs: 130, fat: 35 },
+    workouts: { total: 300 },
+    goals: { calories: 2200, protein: 180, carbs: 240, fat: 70 },
+  });
+
+  assert.match(reply, /- Arroz \(150 g\): 195 kcal/);
+  assert.match(reply, /- Frango \(120 g\): 198 kcal/);
+  assert.match(reply, /Total da refeição: 393 kcal/);
+  assert.match(reply, /Saldo líquido: 900 kcal/);
+  assert.match(reply, /Dashboard: https:\/\/dieta-matheusinho\.vercel\.app\//);
 });
 
 test('buildPendingMessages creates instant outgoing and waiting bubbles', () => {

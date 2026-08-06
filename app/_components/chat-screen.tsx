@@ -81,7 +81,7 @@ export function ChatScreen({
                     {typeof normalized.protein === 'number' && <p>🥩 {normalized.protein}g proteína</p>}
                     {typeof normalized.carbs === 'number' && <p>🍞 {normalized.carbs}g carbo</p>}
                     {typeof normalized.fat === 'number' && <p>🥑 {normalized.fat}g gordura</p>}
-                    {message.message_type === 'draft' && (
+                    {message.message_type === 'draft' && message.status === 'needs_confirmation' && (
                       <button
                         onClick={() => onConfirmDraft(Number(message.id))}
                         disabled={confirmingMessageId === Number(message.id)}
