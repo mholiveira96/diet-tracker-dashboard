@@ -1,5 +1,5 @@
-const CACHE = 'diet-tracker-shell-v2';
-const ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/chat-bg.svg'];
+const CACHE = 'hunger-games-shell-v3';
+const ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-512-maskable.png', '/chat-bg.svg'];
 
 function shouldCacheRequest(method, url) {
   if (method !== 'GET') return false;

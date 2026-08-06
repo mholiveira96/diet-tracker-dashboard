@@ -3,18 +3,17 @@ export default function manifest() {
     name: 'Hunger Games',
     short_name: 'Hunger Games',
     description: 'Chat-first diet and workout tracker.',
-    start_url: '/',
+    id: '/hungergames/',
+    start_url: '/hungergames/',
+    scope: '/hungergames/',
     display: 'standalone',
     background_color: '#fff8fc',
     theme_color: '#e75491',
     orientation: 'portrait',
     icons: [
-      {
-        src: '/icon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
-        purpose: 'any maskable',
-      },
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
 }

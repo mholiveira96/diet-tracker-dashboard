@@ -11,6 +11,7 @@ import { ProfileScreen } from './_components/profile-screen';
 import { EditItemModal } from './_components/edit-item-modal';
 import { GroupOverview } from './_components/group-overview';
 import { QuickLogModal, type QuickLogPayload, type QuickLogType } from './_components/quick-log-modal';
+import { PwaInstallToast } from './_components/pwa-install-toast';
 import { Select } from '../components/ui/select';
 import type { AnalyticsData, AnalyticsTimelineItem, AuditEvent, GoalsState, GroupAdherenceProfile, GroupOverviewItem, PreferencesState, ProfileSummary, SevenDayDeficitItem, TabKey } from './_components/types';
 
@@ -413,6 +414,7 @@ export default function HomePage() {
         onChange={(updater) => setEditingDraft((current: any) => updater(current))}
       />
       <QuickLogModal open={quickLogOpen} type={quickLogType} saving={savingQuickLog} onTypeChange={setQuickLogType} onClose={() => setQuickLogOpen(false)} onSave={handleQuickLog} />
+      <PwaInstallToast />
     </main>
   );
 }
