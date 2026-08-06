@@ -51,7 +51,7 @@ function ConsistencyHeatmap({ profile, endDate, onSelect }: { profile: GroupAdhe
               {heatmap.weeks.map((week) => <span key={`month-${week.key}`} className="h-4 w-3 shrink-0 text-[9px] font-medium text-[#9a788b]">{week.monthLabel}</span>)}
             </div>
             <div className="mt-1 grid grid-cols-[24px_auto] gap-2">
-              <div className="grid grid-rows-7 gap-1 text-[9px] leading-3 text-[#9a788b]"><span>Seg</span><span /><span>Qua</span><span /><span>Sex</span><span /><span>Dom</span></div>
+              <div className="grid grid-rows-7 gap-1 text-[9px] leading-3 text-[#9a788b]"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
               <div className="flex gap-1">
                 {heatmap.weeks.map((week) => (
                   <div key={week.key} className="grid grid-rows-7 gap-1">
