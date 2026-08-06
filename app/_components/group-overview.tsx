@@ -6,9 +6,10 @@ import type { GroupAdherenceProfile, GroupOverviewItem, SevenDayDeficitItem } fr
 import heatmapPresentation from '../../lib/group/heatmap.js';
 
 const { buildConsistencyHeatmap } = heatmapPresentation as {
-  buildConsistencyHeatmap: (days: GroupAdherenceProfile['days'], endDate: string, windowDays?: number) => {
+  buildConsistencyHeatmap: (days: GroupAdherenceProfile['days'], endDate: string, windowDays?: number, startDateOverride?: string) => {
     startDate: string;
     endDate: string;
+    windowDays: number;
     weeks: Array<{ key: string; monthLabel: string; cells: Array<{ date: string; inRange: boolean; day: GroupAdherenceProfile['days'][number] | null }> }>;
   };
 };
@@ -33,9 +34,9 @@ function dayTitle(day: GroupAdherenceProfile['days'][number]) {
   return `${day.date}: ${statusLabel[day.status]} — ${Math.round(day.net_calories).toLocaleString('pt-BR')}/${Math.round(day.goal_calories).toLocaleString('pt-BR')} kcal líquidas`;
 }
 
-function ConsistencyHeatmap({ profile, endDate, onSelect }: { profile: GroupAdherenceProfile; endDate: string; onSelect: () => void }) {
-  const heatmap = buildConsistencyHeatmap(profile.days, endDate, 365);
-  const recorded = profile.days.filter((day) => day.status !== 'no_record').length;
+function ConsistencyHeatmap({ profile, endDate, startDate, onSelect }: { profile: GroupAdherenceProfile; endDate: string; startDate?: string; onSelect: () => void }) {
+  const heatmap = buildConsistencyHeatmap(profile.days, endDate, 365, startDate);
+  const recorded = profile.days.filter((day) => day.status !== 'no_record' && day.date >= heatmap.startDate && day.date <= heatmap.endDate).length;
   const selectedDay = profile.days.find((day) => day.date === endDate) || profile.days[profile.days.length - 1];
 
   return (
@@ -43,7 +44,7 @@ function ConsistencyHeatmap({ profile, endDate, onSelect }: { profile: GroupAdhe
       <div className="flex items-center gap-3">
         <button type="button" onClick={onSelect} className="flex w-36 shrink-0 items-center gap-2.5 rounded-2xl p-1 text-left hover:bg-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-500 sm:w-44">
           <img className="h-10 w-10 rounded-2xl border-2 border-white object-cover" src={avatarSrc(profile.slug)} alt={`Avatar de ${profile.display_name}`} />
-          <span className="min-w-0"><span className="block truncate text-sm font-semibold text-[#47253a]">{profile.display_name}</span><span className="mt-0.5 block text-[10px] font-medium text-[#8b687c]">{recorded}/365 dias</span></span>
+          <span className="min-w-0"><span className="block truncate text-sm font-semibold text-[#47253a]">{profile.display_name}</span><span className="mt-0.5 block text-[10px] font-medium text-[#8b687c]">{recorded}/{heatmap.windowDays} dias</span></span>
         </button>
         <div className="min-w-0 flex-1 overflow-x-auto pb-1 [scrollbar-width:thin]">
           <div className="min-w-[760px]">
@@ -71,6 +72,10 @@ function ConsistencyHeatmap({ profile, endDate, onSelect }: { profile: GroupAdhe
 }
 
 export function GroupOverview({ overview, leaderboard, adherence, selectedDate, loading, onSelectProfile, onPreviousDate, onNextDate }: { overview: GroupOverviewItem[]; leaderboard: SevenDayDeficitItem[]; adherence: GroupAdherenceProfile[]; selectedDate: string; loading?: boolean; onSelectProfile: (profileId: number) => void; onPreviousDate: () => void; onNextDate: () => void; }) {
+  const consistencyEndDate = selectedDate === 'now' ? new Date().toISOString().slice(0, 10) : selectedDate;
+  const recordedDates = adherence.flatMap((profile) => profile.days.filter((day) => day.status !== 'no_record' && day.date <= consistencyEndDate).map((day) => day.date));
+  const firstRecordedDate = recordedDates.sort()[0];
+  const consistencyStartDate = firstRecordedDate ? `${firstRecordedDate.slice(0, 7)}-01` : undefined;
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 lg:px-0 lg:py-7">
       <section className="ios-surface relative overflow-hidden rounded-[32px]">
@@ -82,8 +87,8 @@ export function GroupOverview({ overview, leaderboard, adherence, selectedDate, 
       </section>
 
       <section className="ios-surface overflow-hidden rounded-[32px]">
-        <div className="relative border-b border-[#f0dce7] p-5 lg:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-600">Consistência</p><h3 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[#432238]">Últimos 12 meses</h3><p className="mt-1 text-sm text-[#816176]">Cada quadrado é um dia: a cor compara o saldo líquido com a meta. O período atual fica à esquerda.</p></div><div className="flex flex-wrap items-center gap-2 text-[10px] font-medium text-[#7d5c71]"><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#f4eaf0] ring-1 ring-inset ring-[#ead8e2]" />Sem registro</span><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#f8c9dc]" />Abaixo</span><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#e75491]" />Na meta</span><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#9e235d]" />Acima</span></div></div></div>
-        <div className="space-y-3 p-4 lg:p-5">{loading ? [0, 1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-[24px] bg-pink-100/60" />) : adherence.map((profile) => <ConsistencyHeatmap key={profile.id} profile={profile} endDate={selectedDate === 'now' ? new Date().toISOString().slice(0, 10) : selectedDate} onSelect={() => onSelectProfile(profile.id)} />)}</div>
+        <div className="relative border-b border-[#f0dce7] p-5 lg:p-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-pink-600">Consistência</p><h3 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[#432238]">Histórico com registros</h3><p className="mt-1 text-sm text-[#816176]">Cada quadrado é um dia: meses anteriores à esquerda e o período atual à direita.</p></div><div className="flex flex-wrap items-center gap-2 text-[10px] font-medium text-[#7d5c71]"><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#f4eaf0] ring-1 ring-inset ring-[#ead8e2]" />Sem registro</span><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#f8c9dc]" />Abaixo</span><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#e75491]" />Na meta</span><span><i className="mr-1 inline-block h-3 w-3 rounded-[3px] bg-[#9e235d]" />Acima</span></div></div></div>
+        <div className="space-y-3 p-4 lg:p-5">{loading ? [0, 1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-[24px] bg-pink-100/60" />) : adherence.map((profile) => <ConsistencyHeatmap key={profile.id} profile={profile} startDate={consistencyStartDate} endDate={consistencyEndDate} onSelect={() => onSelectProfile(profile.id)} />)}</div>
       </section>
 
       <section className="ios-surface overflow-hidden rounded-[32px]">

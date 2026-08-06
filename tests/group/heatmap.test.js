@@ -12,8 +12,16 @@ test('buildConsistencyHeatmap creates a year-like Sunday-to-Saturday grid', () =
   assert.equal(result.endDate, '2026-08-06');
   assert.equal(result.weeks.length, 53);
   assert.equal(result.weeks.every((week) => week.cells.length === 7), true);
-  assert.equal(result.weeks[0].cells[0].date, '2026-08-02');
-  assert.equal(result.weeks.at(-1).cells[0].date, '2025-08-03');
+  assert.equal(result.weeks[0].cells[0].date, '2025-08-03');
+  assert.equal(result.weeks.at(-1).cells.at(-1).date, '2026-08-08');
+});
+
+test('buildConsistencyHeatmap can start at the first recorded month', () => {
+  const result = buildConsistencyHeatmap([], '2026-08-06', 365, '2026-07-01');
+
+  assert.equal(result.startDate, '2026-07-01');
+  assert.equal(result.windowDays, 37);
+  assert.equal(result.weeks[0].monthLabel, 'jul');
 });
 
 test('buildConsistencyHeatmap preserves recorded days and blanks out missing days', () => {
