@@ -19,7 +19,7 @@ test('formatTimelineTime returns local hour and minute', () => {
 });
 
 test('getHistoryCaloriesBar leaves zero-calorie days truly empty', () => {
-  assert.deepEqual(getHistoryCaloriesBar({ kcal: 0 }, 2500), {
+  assert.deepEqual(getHistoryCaloriesBar({ kcal: 1800, net_kcal: 0 }, 2500), {
     width: '0%',
     background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)',
     tone: 'emerald',
@@ -27,8 +27,8 @@ test('getHistoryCaloriesBar leaves zero-calorie days truly empty', () => {
 });
 
 test('getHistoryCaloriesBar gets warmer as calories approach and exceed goal', () => {
-  const mid = getHistoryCaloriesBar({ kcal: 1800 }, 2500);
-  const over = getHistoryCaloriesBar({ kcal: 3200 }, 2500);
+  const mid = getHistoryCaloriesBar({ kcal: 2200, net_kcal: 1800 }, 2500);
+  const over = getHistoryCaloriesBar({ kcal: 3200, net_kcal: 3200 }, 2500);
 
   assert.equal(mid.width, '72%');
   assert.equal(mid.tone, 'amber');

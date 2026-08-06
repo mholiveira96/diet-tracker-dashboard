@@ -36,6 +36,14 @@
 
 O frontend não deve assumir metas estáticas como fonte final. Use sempre `goals` retornado pelo backend.
 
+## Calorias nas visualizações
+
+- Cards de detalhe podem mostrar separadamente `Consumido`, `Treino` e `Líquido`.
+- Barras de tendência dos últimos 7 dias usam `history[].net_kcal`.
+- Barras de progresso da visão do grupo usam `kcal - workout_kcal`.
+- Comparações com a meta de calorias devem exibir e calcular calorias líquidas; o consumo bruto permanece disponível apenas como métrica informativa separada.
+
+
 ## Edição
 
 Toda edição envia `profileId` explicitamente e o backend verifica que o item pertence ao perfil. Após mutações, recarregar analytics, overview e auditoria. Não usar ID sozinho para alterar ou excluir.

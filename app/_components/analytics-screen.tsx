@@ -135,7 +135,7 @@ export function AnalyticsScreen({
                     <div key={day.day}>
                       <div className="mb-1.5 flex items-center justify-between text-xs text-white/65">
                         <span className="font-medium capitalize">{formatDayLabel(day.day)}</span>
-                        <span className="tabular-nums">{day.kcal} <span className="text-white/30">/</span> {analytics.goals?.calories || 0} kcal</span>
+                        <span className="tabular-nums">{day.net_kcal} <span className="text-white/30">/</span> {analytics.goals?.calories || 0} kcal líquidas</span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-black/25 ring-1 ring-white/[0.06]">
                         <div className="h-full rounded-full transition-[width] duration-500" style={{ width: caloriesBar.width, background: caloriesBar.background }} />
