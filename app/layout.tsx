@@ -10,13 +10,13 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Hunger Games",
   },
-  manifest: "/manifest.webmanifest",
+  manifest: "/hungergames/manifest.webmanifest",
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+      { url: "/hungergames/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/hungergames/icons/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
-    apple: [{ url: "/icons/icon-180.png", type: "image/png", sizes: "180x180" }],
+    apple: [{ url: "/hungergames/icons/icon-180.png", type: "image/png", sizes: "180x180" }],
   },
 };
 

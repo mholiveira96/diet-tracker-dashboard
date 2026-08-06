@@ -1,5 +1,5 @@
 const CACHE = 'hunger-games-shell-v3';
-const ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-512-maskable.png', '/chat-bg.svg'];
+const ASSETS = ['/hungergames/', '/hungergames/manifest.webmanifest', '/hungergames/icon.svg', '/hungergames/icons/icon-192.png', '/hungergames/icons/icon-512.png', '/hungergames/icons/icon-512-maskable.png', '/hungergames/chat-bg.svg'];
 
 function shouldCacheRequest(method, url) {
   if (method !== 'GET') return false;

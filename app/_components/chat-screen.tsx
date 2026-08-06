@@ -40,7 +40,7 @@ export function ChatScreen({
   messagesEndRef: React.RefObject<HTMLDivElement>;
 }) {
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-[url('/chat-bg.svg')] bg-cover bg-center px-3 py-4 lg:rounded-[32px]">
+    <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-[url('/hungergames/chat-bg.svg')] bg-cover bg-center px-3 py-4 lg:rounded-[32px]">
       <div className="space-y-3">
         {displayedMessages.map((message) => {
           const isUser = message.role === 'user';
