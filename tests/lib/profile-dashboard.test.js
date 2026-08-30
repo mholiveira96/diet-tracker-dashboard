@@ -3,7 +3,9 @@ const assert = require('node:assert/strict');
 
 const {
   PROFILE_STORAGE_KEY,
+  PUBLIC_APP_PREFIX,
   getStoredProfileId,
+  getAppPathPrefix,
   profileRequestUrl,
   withProfileId,
 } = require('../../lib/ui/profile-dashboard.js');
@@ -21,6 +23,14 @@ test('builds profile-scoped request URLs without losing date parameters', () => 
   assert.equal(profileRequestUrl('/api/profiles', { date: '2026-07-30' }), '/api/profiles?date=2026-07-30');
   assert.equal(profileRequestUrl('/api/data', { profileId: 7, date: '2026-07-30' }), '/api/data?profileId=7&date=2026-07-30');
   assert.equal(profileRequestUrl('/api/meals/4', { profileId: 7 }), '/api/meals/4?profileId=7');
+});
+
+test('prefixes API requests when the app is opened under the public subpath', () => {
+  const locationLike = { pathname: '/hungergames/' };
+  assert.equal(PUBLIC_APP_PREFIX, '/hungergames');
+  assert.equal(getAppPathPrefix(locationLike), '/hungergames');
+  assert.equal(profileRequestUrl('/api/profiles', { date: '2026-08-29' }, locationLike), '/hungergames/api/profiles?date=2026-08-29');
+  assert.equal(profileRequestUrl('/api/meals/4', { profileId: 7 }, locationLike), '/hungergames/api/meals/4?profileId=7');
 });
 
 test('adds the active profile id to JSON mutation payloads', () => {

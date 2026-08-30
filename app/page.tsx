@@ -119,7 +119,7 @@ export default function HomePage() {
     if (!profileId) return;
     const [goalsPayload, prefPayload] = await Promise.all([
       parseJsonResponse(await fetch(profileRequestUrl('/api/goals', { profileId }), { cache: 'no-store' })),
-      parseJsonResponse(await fetch('/api/preferences', { cache: 'no-store' })),
+      parseJsonResponse(await fetch(profileRequestUrl('/api/preferences'), { cache: 'no-store' })),
     ]);
     setGoals(goalsPayload);
     setPreferences(prefPayload);
@@ -173,12 +173,12 @@ export default function HomePage() {
     setSubmissionFeedback('Salvando perfil...');
     try {
       await Promise.all([
-        parseJsonResponse(await fetch('/api/goals', {
+        parseJsonResponse(await fetch(profileRequestUrl('/api/goals'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(withProfileId(goals, activeProfileId)),
         })),
-        parseJsonResponse(await fetch('/api/preferences', {
+        parseJsonResponse(await fetch(profileRequestUrl('/api/preferences'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(preferences),
@@ -211,7 +211,7 @@ export default function HomePage() {
     setSavingItem(true);
     setSubmissionFeedback(itemType === 'workout' ? 'Salvando treino...' : 'Salvando refeição...');
     try {
-      await parseJsonResponse(await fetch(endpoint, {
+      await parseJsonResponse(await fetch(profileRequestUrl(endpoint), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(withProfileId(editingDraft, activeProfileId)),
@@ -258,7 +258,7 @@ export default function HomePage() {
     setSavingQuickLog(true);
     setSubmissionFeedback(type === 'meal' ? 'Salvando refeição...' : 'Salvando treino...');
     try {
-      await parseJsonResponse(await fetch(`/api/${type === 'meal' ? 'meals' : 'workouts'}`, {
+      await parseJsonResponse(await fetch(profileRequestUrl(`/api/${type === 'meal' ? 'meals' : 'workouts'}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(withProfileId(data, activeProfileId)),
@@ -278,7 +278,7 @@ export default function HomePage() {
     setRestoringAuditId(event.id);
     setSubmissionFeedback('Restaurando registro...');
     try {
-      await parseJsonResponse(await fetch(`/api/audit/${event.id}/restore`, {
+      await parseJsonResponse(await fetch(profileRequestUrl(`/api/audit/${event.id}/restore`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profileId: activeProfileId }),
