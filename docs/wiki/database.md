@@ -44,6 +44,7 @@ Favoritos nutricionais por perfil: nome, macros, porção-base e unidade. A tabe
 - `001_add_workout_details.sql` — exercícios e campos detalhados de treino.
 - `002_add_chat_ingestion.sql` — chat, anexos e parse runs.
 - `003_add_profiles_and_audit.sql` — perfis, ownership, soft delete, favoritos por perfil e auditoria.
+- `004_add_andreia_marcelo.sql` — adiciona os perfis Andreia e Marcelo.
 
 Antes de assumir que uma coluna opcional existe em produção, consultar `PRAGMA table_info(workouts)`. O repository já usa fallback `NULL` para `workout_type`, `intensity` e `notes` ausentes.
 
